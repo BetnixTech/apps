@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lite Docs — Offline Editor</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <header class="appbar">
+    <div class="brand">
+      <span class="logo">📄</span>
+      <input id="docTitle" class="title" value="Untitled document" />
+      <span id="autosaveStatus" class="muted">Saved</span>
+    </div>
+    <div class="actions">
+      <button id="btnNew" title="New (Ctrl+Alt+N)">New</button>
+      <button id="btnOpen" title="Open from local (JSON)">Open</button>
+      <button id="btnSave" title="Save (Ctrl+S)">Save</button>
+      <button id="btnExportHTML" title="Export as .html">Export HTML</button>
+      <button id="btnPrint" title="Print / Export PDF">Print / PDF</button>
+      <button id="btnHistory" title="Version history">History</button>
+      <button id="btnSettings" title="Page setup">Page</button>
+    </div>
+  </header>
+
+  <nav class="toolbar" id="toolbar">
+    <div class="group">
+      <select id="fontFamily">
+        <option value="default">Font</option>
+        <option>Arial</option><option>Georgia</option><option>Times New Roman</option>
+        <option>Calibri</option><option>Inter</option><option>Courier New</option>
+      </select>
+      <select id="fontSize">
+        <option value="16">Normal</option>
+        <option value="12">Small</option>
+        <option value="14">Body</option>
+        <option value="18">Subheading</option>
+        <option value="24">Heading</option>
+        <option value="32">Title</option>
+      </select>
+      <select id="lineHeight">
+        <option value="1.2">Line</option>
+        <option value="1">1.0</option><option value="1.15">1.15</option>
+        <option value="1.5">1.5</option><option value="2">2.0</option>
+      </select>
+    </div>
+
+    <div class="group">
+      <button data-cmd="bold"><b>B</b></button>
+      <button data-cmd="italic"><i>I</i></button>
+      <button data-cmd="underline"><u>U</u></button>
+      <button data-cmd="strikeThrough"><s>S</s></button>
+      <button id="btnTextColor">A</button>
+      <input type="color" id="inputTextColor" class="hidden"/>
+      <button id="btnHighlight">🖍</button>
+      <input type="color" id="inputHighlight" class="hidden"/>
+    </div>
+
+    <div class="group">
+      <button data-cmd="justifyLeft">⟸</button>
+      <button data-cmd="justifyCenter">⇔</button>
+      <button data-cmd="justifyRight">⟹</button>
+      <button data-cmd="justifyFull">≋</button>
+    </div>
+
+    <div class="group">
+      <button data-cmd="insertUnorderedList">• List</button>
+      <button data-cmd="insertOrderedList">1. List</button>
+      <button id="btnCheckList">☑ List</button>
+      <button data-cmd="outdent">Outdent</button>
+      <button data-cmd="indent">Indent</button>
+    </div>
+
+    <div class="group">
+      <button id="btnLink">🔗</button>
+      <button id="btnImage">🖼</button>
+      <input type="file" id="inputImage" accept="image/*" class="hidden"/>
+      <button id="btnTable">▦</button>
+      <button id="btnPageBreak">⤓</button>
+      <button id="btnFindReplace">Find</button>
+      <button id="btnComment">💬</button>
+      <label class="toggle"><input type="checkbox" id="toggleSuggest"/> Suggesting</label>
+    </div>
+
+    <div class="group">
+      <button id="btnUndo">⟲</button>
+      <button id="btnRedo">⟳</button>
+      <span id="wordCount" class="muted">0 words</span>
+    </div>
+  </nav>
+
+  <main class="workspace">
+    <aside class="sidebar" id="commentSidebar">
+      <div class="sidebar-header">Comments</div>
+      <div id="commentList" class="comment-list"></div>
+    </aside>
+
+    <section class="pages-wrap" id="pagesWrap">
+      <div id="page" class="page" contenteditable="true" spellcheck="true"></div>
+    </section>
+  </main>
+
+  <dialog id="dlgFindReplace" class="dialog">
+    <form method="dialog">
+      <h3>Find & Replace</h3>
+      <input id="findText" placeholder="Find..."/>
+      <input id="replaceText" placeholder="Replace with..."/>
+      <menu>
+        <button id="btnFindNext" value="find">Find next</button>
+        <button id="btnReplace" value="replace">Replace</button>
+        <button id="btnReplaceAll" value="replaceAll">Replace all</button>
+        <button value="cancel">Close</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="dlgHistory" class="dialog">
+    <form method="dialog">
+      <h3>Version history</h3>
+      <div id="historyList" class="history-list"></div>
+      <menu>
+        <button value="close">Close</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="dlgPage" class="dialog">
+    <form method="dialog">
+      <h3>Page setup</h3>
+      <label>Size:
+        <select id="pageSize">
+          <option value="letter">US Letter</option>
+          <option value="a4">A4</option>
+        </select>
+      </label>
+      <label>Margins (in): 
+        <input id="marginTop" type="number" step="0.1" value="1"/>
+        <input id="marginRight" type="number" step="0.1" value="1"/>
+        <input id="marginBottom" type="number" step="0.1" value="1"/>
+        <input id="marginLeft" type="number" step="0.1" value="1"/>
+      </label>
+      <menu>
+        <button id="btnApplyPage" value="apply">Apply</button>
+        <button value="cancel">Close</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <input type="file" id="inputOpen" accept="application/json" class="hidden"/>
+
+  <script src="app.js"></script>
+</body>
+</html>
