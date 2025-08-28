@@ -65,6 +65,34 @@ function renderSheet(){
     evalSheet();
 }
 
+function renameSheet() {
+    const newName = document.getElementById('sheetNameInput').value.trim();
+    if (newName) {
+        saveUndo();
+        sheets[currentSheet].name = newName;
+        updateSheetSelector();
+    }
+}
+
+function updateSheetSelector() {
+    const sel = document.getElementById('sheetSelector');
+    sel.innerHTML = '';
+    sheets.forEach((s, i) => {
+        const option = document.createElement('option');
+        option.value = i;
+        option.innerText = s.name;
+        sel.appendChild(option);
+    });
+    sel.value = currentSheet;
+    document.getElementById('sheetNameInput').value = sheets[currentSheet].name;
+}
+
+function switchSheet(index) {
+    currentSheet = parseInt(index);
+    renderSheet();
+    document.getElementById('sheetNameInput').value = sheets[currentSheet].name;
+}
+
 function saveUndo(){undoStack.push(JSON.stringify(sheets));redoStack=[];}
 function undo(){if(!undoStack.length) return;redoStack.push(JSON.stringify(sheets));sheets=JSON.parse(undoStack.pop());renderSheet();}
 function redo(){if(!redoStack.length) return;undoStack.push(JSON.stringify(sheets));sheets=JSON.parse(redoStack.pop());renderSheet();}
