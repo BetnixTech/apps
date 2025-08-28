@@ -21,6 +21,9 @@
   <input type="color" id="bgColor" onchange="formatSelected('bg', this.value)" title="Background color">
   <input type="color" id="fontColor" onchange="formatSelected('color', this.value)" title="Font color">
   <select id="sheetSelector" onchange="switchSheet(this.value)"></select>
+
+  <input type="text" id="sheetNameInput" placeholder="Rename Sheet">
+  <button onclick="renameSheet()">Rename</button>
 </div>
 
 <div id="sheetsContainer">
