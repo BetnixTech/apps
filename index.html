@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultimate Web Sheets - Styled</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="toolbar">
+  <button onclick="addRow()">Add Row</button>
+  <button onclick="addColumn()">Add Column</button>
+  <button onclick="addSheet()">Add Sheet</button>
+  <button onclick="undo()">Undo</button>
+  <button onclick="redo()">Redo</button>
+  <button onclick="saveSheet()">Save</button>
+  <button onclick="loadSheet()">Load</button>
+  <button onclick="formatSelected('bold')">Bold</button>
+  <button onclick="formatSelected('italic')">Italic</button>
+  <input type="color" id="bgColor" onchange="formatSelected('bg', this.value)" title="Background color">
+  <input type="color" id="fontColor" onchange="formatSelected('color', this.value)" title="Font color">
+  <select id="sheetSelector" onchange="switchSheet(this.value)"></select>
+</div>
+
+<div id="sheetsContainer">
+  <table id="sheet"></table>
+</div>
+
+<ul id="contextMenu">
+  <li onclick="insertRow()">Insert Row</li>
+  <li onclick="deleteRow()">Delete Row</li>
+  <li onclick="insertColumn()">Insert Column</li>
+  <li onclick="deleteColumn()">Delete Column</li>
+  <li onclick="cutCells()">Cut</li>
+  <li onclick="copyCells()">Copy</li>
+  <li onclick="pasteCells()">Paste</li>
+</ul>
+
+<script src="script.js"></script>
+</body>
+</html>
