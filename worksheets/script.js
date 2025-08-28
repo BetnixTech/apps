@@ -93,6 +93,22 @@ function switchSheet(index) {
     document.getElementById('sheetNameInput').value = sheets[currentSheet].name;
 }
 
+function saveSheet() {
+    localStorage.setItem('ultimateWebSheets', JSON.stringify(sheets));
+    alert('Saved!');
+}
+
+function loadSheet() {
+    const data = localStorage.getItem('ultimateWebSheets');
+    if (data) {
+        sheets = JSON.parse(data);
+        currentSheet = 0; // Reset to the first sheet
+        updateSheetSelector();
+        renderSheet();
+        alert('Loaded!');
+    }
+}
+
 function saveUndo(){undoStack.push(JSON.stringify(sheets));redoStack=[];}
 function undo(){if(!undoStack.length) return;redoStack.push(JSON.stringify(sheets));sheets=JSON.parse(undoStack.pop());renderSheet();}
 function redo(){if(!redoStack.length) return;undoStack.push(JSON.stringify(sheets));sheets=JSON.parse(redoStack.pop());renderSheet();}
