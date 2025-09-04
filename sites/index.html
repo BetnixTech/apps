@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Betnix Sites (Local)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body{font-family:'Roboto',sans-serif;background:#f5f5f5;margin:0;padding:20px;}
+        .hidden{display:none;}
+        h1{margin-top:0;}
+        a,button{cursor:pointer;}
+        #dashboard,#editor{background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+        #editor{border:1px solid #ccc;min-height:500px;position:relative;overflow:auto;}
+        .element{position:absolute;cursor:move;border:1px dashed #aaa;padding:2px;min-width:50px;min-height:20px;}
+        input,button,textarea{padding:8px;margin-right:5px;border-radius:5px;border:1px solid #ccc;font-size:14px;}
+        button{background:#1a73e8;color:#fff;border:none;}
+        button:hover{background:#155ab6;}
+        .resizer{width:10px;height:10px;background:#1a73e8;position:absolute;right:0;bottom:0;cursor:se-resize;}
+    </style>
+</head>
+<body>
+
+    <!-- Dashboard Page -->
+    <div id="dashboard">
+        <h1>Betnix Sites Dashboard</h1>
+        <button onclick="showEditor()">Create New Site</button>
+        <ul id="siteList"></ul>
+    </div>
+
+    <!-- Editor Page -->
+    <div id="editor" class="hidden">
+        <h1>Site Editor</h1>
+        <div>
+            <button onclick="backToDashboard()">Back</button>
+            <input type="text" id="siteName" placeholder="Site Name">
+            <input type="text" id="favicon" placeholder="Favicon URL">
+            <button onclick="addText()">Add Text</button>
+            <button onclick="addImage()">Add Image</button>
+            <button onclick="addHTML()">Add HTML</button>
+            <input type="file" id="fileUpload">
+            <button onclick="uploadFile()">Upload Image</button>
+            <button onclick="saveSite()">Save & Publish</button>
+        </div>
+        <div id="editorArea"></div>
+    </div>
+
+    <script>
+        const dashboard = document.getElementById('dashboard');
+        const editor = document.getElementById('editor');
+        const editorArea = document.getElementById('editorArea');
+        let elements = [];
+        let editingSite = null;
+
+        // ---------------- Dashboard ----------------
+        function loadSites(){
+            const sites = Object.keys(localStorage).filter(k=>k.startsWith('site-'));
+            const siteList = document.getElementById('siteList');
+            siteList.innerHTML='';
+            sites.forEach(k=>{
+                const siteName = k.replace('site-','');
+                const li = document.createElement('li');
+                li.innerHTML=`<a href="#" onclick="editSite('${siteName}')">${siteName}</a> | 
+                                <a href="#" onclick="viewSite('${siteName}')">View</a>`;
+                siteList.appendChild(li);
+            });
+        }
+
+        function showEditor(){
+            dashboard.classList.add('hidden');
+            editor.classList.remove('hidden');
+            elements=[];
+            editingSite=null;
+            document.getElementById('siteName').value='';
+            document.getElementById('favicon').value='';
+            renderElements();
+        }
+
+        function backToDashboard(){
+            dashboard.classList.remove('hidden');
+            editor.classList.add('hidden');
+            loadSites();
+        }
+
+        function editSite(name){
+            const site = JSON.parse(localStorage.getItem('site-'+name));
+            editingSite = name;
+            document.getElementById('siteName').value = site.name;
+            document.getElementById('favicon').value = site.favicon||'';
+            elements = site.elements;
+            dashboard.classList.add('hidden');
+            editor.classList.remove('hidden');
+            renderElements();
+        }
+
+        function viewSite(name){
+            const site = JSON.parse(localStorage.getItem('site-'+name));
+            const win = window.open('','_blank');
+            let html = `<!DOCTYPE html><html><head><title>${site.name}</title>`;
+            if(site.favicon) html += `<link rel="icon" href="${site.favicon}">`;
+            html += `<style>body{margin:0;font-family:Roboto,sans-serif}.element{position:absolute;}</style></head><body>`;
+            site.elements.forEach(el=>{
+                if(el.type==='text') html+=`<div class="element" style="left:${el.x}px;top:${el.y}px;color:${el.style.color};font-size:${el.style.fontSize}">${el.content}</div>`;
+                else if(el.type==='image') html+=`<img class="element" src="${el.src}" style="position:absolute;left:${el.x}px;top:${el.y}px;width:${el.width}px;">`;
+                else if(el.type==='html') html+=`<div class="element" style="left:${el.x}px;top:${el.y}px">${el.content}</div>`;
+            });
+            html+='</body></html>';
+            win.document.write(html);
+        }
+
+        // ---------------- Editor ----------------
+        function renderElements(){
+            editorArea.innerHTML='';
+            elements.forEach((el,i)=>{
+                let div=document.createElement('div');
+                div.className='element';
+                div.dataset.index=i;
+                div.style.left=el.x+'px';
+                div.style.top=el.y+'px';
+
+                if(el.type==='text'){ div.innerText=el.content; div.style.color=el.style.color; div.style.fontSize=el.style.fontSize; }
+                else if(el.type==='image'){ let img=document.createElement('img'); img.src=el.src; img.style.width=el.width+'px'; div.appendChild(img);}
+                else if(el.type==='html'){ div.innerHTML=el.content; div.style.minWidth='50px'; div.style.minHeight='20px'; }
+
+                makeDraggable(div);
+                makeResizable(div);
+                editorArea.appendChild(div);
+            });
+        }
+
+        function makeDraggable(el){
+            let offsetX,offsetY;
+            el.onmousedown=function(e){
+                if(e.target.classList.contains('resizer')) return;
+                offsetX=e.offsetX; offsetY=e.offsetY;
+                document.onmousemove=drag; document.onmouseup=stopDrag;
+            }
+            function drag(e){ el.style.left=(e.pageX-editorArea.offsetLeft-offsetX)+'px'; el.style.top=(e.pageY-editorArea.offsetTop-offsetY)+'px'; }
+            function stopDrag(){ const i=el.dataset.index; elements[i].x=parseInt(el.style.left); elements[i].y=parseInt(el.style.top); document.onmousemove=null; document.onmouseup=null; }
+        }
+
+        function makeResizable(el){
+            const resizer = document.createElement('div');
+            resizer.className='resizer';
+            el.appendChild(resizer);
+            let startX, startY, startW, startH;
+            resizer.onmousedown = function(e){
+                e.stopPropagation();
+                startX=e.clientX; startY=e.clientY;
+                startW=parseInt(window.getComputedStyle(el).width); startH=parseInt(window.getComputedStyle(el).height);
+                document.onmousemove=resize; document.onmouseup=stopResize;
+            }
+            function resize(e){
+                const w=startW+(e.clientX-startX);
+                const h=startH+(e.clientY-startY);
+                el.style.width=w+'px'; el.style.height=h+'px';
+                const i=el.dataset.index;
+                if(elements[i].type==='image') elements[i].width=w;
+            }
+            function stopResize(){ document.onmousemove=null; document.onmouseup=null; }
+        }
+
+        function addText(){ const text=prompt('Enter text:'); if(text){ elements.push({type:'text',content:text,x:10,y:10,style:{color:'#000',fontSize:'20px'}}); renderElements(); } }
+        function addImage(){ const src=prompt('Enter image URL:'); if(src){ elements.push({type:'image',src,x:10,y:10,width:150}); renderElements(); } }
+        function addHTML(){ const html=prompt('Enter HTML code:'); if(html){ elements.push({type:'html',content:html,x:10,y:10}); renderElements(); } }
+
+        function uploadFile(){
+            const fileInput=document.getElementById('fileUpload');
+            if(fileInput.files.length===0){ alert('Select a file'); return; }
+            const reader = new FileReader();
+            reader.onload = function(e){
+                elements.push({type:'image',src:e.target.result,x:10,y:10,width:150});
+                renderElements();
+            }
+            reader.readAsDataURL(fileInput.files[0]);
+        }
+
+        function saveSite(){
+            const name=document.getElementById('siteName').value;
+            const favicon=document.getElementById('favicon').value;
+            if(!name){ alert('Enter site name'); return; }
+            const site={name,favicon,elements};
+            localStorage.setItem('site-'+name, JSON.stringify(site));
+            alert('Site saved!');
+            backToDashboard();
+        }
+
+        loadSites();
+    </script>
+</body>
+</html>
