@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini Keep - Polished</title>
+<style>
+body {
+    font-family: 'Roboto', sans-serif;
+    background: #f5f5f5;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+header {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    background: #fff;
+    padding: 15px 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+header button {
+    padding: 10px 20px;
+    border-radius: 20px;
+    border: none;
+    background: #ffeb3b;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+header button:hover { background: #fdd835; }
+
+.page { display: none; padding: 20px; }
+.active { display: block; }
+
+#search {
+    display: block;
+    width: 420px;
+    margin: 0 auto 20px;
+    padding: 10px 15px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    outline: none;
+    font-size: 14px;
+}
+
+#notes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 15px;
+    transition: all 0.3s;
+}
+
+.note {
+    background: #fff;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    cursor: grab;
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.3s;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 60px;
+}
+
+.note:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.note .actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+    gap: 10px;
+}
+
+.note button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    transition: transform 0.2s;
+}
+
+.note button:hover { transform: scale(1.2); }
+.pinBtn { color: #fbbc04; }
+.deleteBtn { color: #ea4335; }
+
+#editorPage { display: flex; flex-direction: column; align-items: center; }
+#editorTextarea {
+    width: 90%;
+    max-width: 800px;
+    height: 400px;
+    font-size: 16px;
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid #ccc;
+    resize: none;
+    outline: none;
+    transition: all 0.3s;
+}
+#editorControls { margin: 15px 0; display: flex; gap: 10px; }
+#editorColor { padding: 10px; border-radius: 20px; border: 1px solid #ccc; font-size: 14px; }
+#saveBtn { padding: 10px 20px; border-radius: 20px; border: none; background: #ffeb3b; cursor: pointer; font-weight: bold; }
+
+.fade { animation: fadeIn 0.3s; }
+@keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
+</style>
+</head>
+<body>
+
+<header>
+    <button onclick="showPage('dashboard')">Dashboard</button>
+    <button onclick="showPage('editor')">Editor</button>
+</header>
+
+<div id="dashboard" class="page active fade">
+    <input type="text" id="search" placeholder="Search notes..." oninput="renderNotes()">
+    <div id="notes"></div>
+</div>
+
+<div id="editor" class="page fade">
+    <div id="editorPage">
+        <div id="editorControls">
+            <select id="editorColor">
+                <option value="#fff">White</option>
+                <option value="#fff475">Yellow</option>
+                <option value="#ccff90">Green</option>
+                <option value="#a7ffeb">Teal</option>
+                <option value="#fdcfe8">Pink</option>
+                <option value="#cbf0f8">Blue</option>
+                <option value="#e6c9a8">Brown</option>
+                <option value="#d7aefb">Purple</option>
+            </select>
+            <button id="saveBtn" onclick="saveFromEditor()">Save Note</button>
+        </div>
+        <textarea id="editorTextarea" placeholder="Type your note here..."></textarea>
+    </div>
+</div>
+
+<script>
+let notes = JSON.parse(localStorage.getItem('notes')) || [];
+let editIndex = null;
+
+function saveNotes() { localStorage.setItem('notes', JSON.stringify(notes)); }
+function showPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(pageId).classList.add('active', 'fade');
+}
+
+function addNote(text, color) { notes.push({text,color,pinned:false}); saveNotes(); renderNotes(); }
+function deleteNote(index) { notes.splice(index,1); saveNotes(); renderNotes(); }
+function togglePin(index) { notes[index].pinned=!notes[index].pinned; saveNotes(); renderNotes(); }
+
+function renderNotes() {
+    const container=document.getElementById('notes');
+    const searchText=document.getElementById('search').value.toLowerCase();
+    container.innerHTML='';
+    const sortedNotes=[...notes].sort((a,b)=>b.pinned-a.pinned);
+    sortedNotes.forEach((note,index)=>{
+        if(!note.text.toLowerCase().includes(searchText)) return;
+        const noteDiv=document.createElement('div');
+        noteDiv.classList.add('note');
+        noteDiv.style.backgroundColor=note.color;
+        noteDiv.setAttribute('draggable',true);
+
+        const noteText=document.createElement('div');
+        noteText.textContent=note.text.length>100?note.text.slice(0,100)+'...':note.text;
+        noteText.style.flexGrow='1';
+
+        const actionsDiv=document.createElement('div');
+        actionsDiv.classList.add('actions');
+        const pinBtn=document.createElement('button');
+        pinBtn.classList.add('pinBtn');
+        pinBtn.innerHTML=note.pinned?'📌':'📍';
+        pinBtn.onclick=(e)=>{ e.stopPropagation(); togglePin(index); }
+        const deleteBtn=document.createElement('button');
+        deleteBtn.classList.add('deleteBtn');
+        deleteBtn.innerHTML='✖';
+        deleteBtn.onclick=(e)=>{ e.stopPropagation(); deleteNote(index); }
+
+        actionsDiv.appendChild(pinBtn);
+        actionsDiv.appendChild(deleteBtn);
+
+        noteDiv.appendChild(noteText);
+        noteDiv.appendChild(actionsDiv);
+
+        // Click to edit
+        noteDiv.onclick=()=>{ openEditor(index); }
+
+        // Drag and drop
+        noteDiv.addEventListener('dragstart',(e)=>{
+            e.dataTransfer.setData('text/plain', index);
+        });
+        noteDiv.addEventListener('dragover',(e)=> e.preventDefault());
+        noteDiv.addEventListener('drop',(e)=>{
+            e.preventDefault();
+            const draggedIndex=e.dataTransfer.getData('text');
+            const draggedNote=notes[draggedIndex];
+            notes.splice(draggedIndex,1);
+            notes.splice(index,0,draggedNote);
+            saveNotes();
+            renderNotes();
+        });
+
+        container.appendChild(noteDiv);
+    });
+}
+
+function openEditor(index) {
+    editIndex=index;
+    const note=notes[index];
+    document.getElementById('editorTextarea').value=note.text;
+    document.getElementById('editorColor').value=note.color;
+    showPage('editor');
+}
+
+// Auto-save while typing
+document.getElementById('editorTextarea').addEventListener('input',()=>{
+    const text=document.getElementById('editorTextarea').value;
+    if(editIndex!==null){ notes[editIndex].text=text; saveNotes(); }
+});
+
+function saveFromEditor() {
+    const text=document.getElementById('editorTextarea').value.trim();
+    const color=document.getElementById('editorColor').value;
+    if(!text) return;
+    if(editIndex!==null){ notes[editIndex]={text,color,pinned:notes[editIndex].pinned}; editIndex=null; }
+    else addNote(text,color);
+    document.getElementById('editorTextarea').value='';
+    showPage('dashboard');
+    renderNotes();
+}
+
+renderNotes();
+</script>
+</body>
+</html>
