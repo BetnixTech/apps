@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Betnix Pro Drawing</title>
+<style>
+body,html { margin:0; padding:0; font-family:'SF Pro',Roboto,sans-serif; background:#f7f7f7; }
+.page { display:none; padding:20px; }
+.active { display:block; }
+button,input,select { font-family:inherit; cursor:pointer; border-radius:8px; border:1px solid #ccc; padding:5px 10px; background:#fff; transition:0.2s; }
+button:hover,input:hover,select:hover { background:#eee; }
+h1,h2 { margin:0 0 10px 0; }
+#dashboard h1 { margin-bottom:15px; }
+#drawingsList { list-style:none; padding:0; margin-top:10px; max-width:300px; }
+#drawingsList li { margin:5px 0; cursor:pointer; background:#e0e0e0; padding:10px; border-radius:10px; transition:0.2s; }
+#drawingsList li:hover { background:#d0d0d0; }
+#editor h1 { margin-bottom:10px; }
+#toolbar { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px; align-items:center; }
+canvas { border:1px solid #ccc; background:#fff; cursor:crosshair; }
+#layersPanel { position:absolute; top:70px; right:20px; width:200px; background:#fff; border:1px solid #ccc; padding:10px; border-radius:10px; max-height:400px; overflow-y:auto; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
+#layersPanel h3 { margin-top:0; font-size:16px; }
+.layerItem { padding:5px; margin:3px 0; background:#f0f0f0; border-radius:6px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+.layerItem.selected { background:#d0d0ff; }
+.contextMenu { position:absolute; background:#fff; border:1px solid #ccc; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.2); display:none; z-index:1000; }
+.contextMenu button { display:block; width:100%; border:none; text-align:left; background:none; padding:8px 12px; margin:0; }
+.contextMenu button:hover { background:#eee; }
+</style>
+</head>
+<body>
+
+<!-- Dashboard -->
+<div id="dashboard" class="page active">
+  <h1>Betnix Drawing Dashboard</h1>
+  <button onclick="showPage('editor')">Create New Drawing</button>
+  <h2>Saved Drawings</h2>
+  <ul id="drawingsList"></ul>
+</div>
+
+<!-- Editor -->
+<div id="editor" class="page">
+  <h1>Betnix Drawing Editor</h1>
+  <div id="toolbar">
+    <label>Color: <input type="color" id="colorPicker" value="#000000"></label>
+    <label>Line width: <input type="number" id="lineWidth" value="3" min="1" max="50"></label>
+    <label>Shape: 
+      <select id="shapeSelect">
+        <option value="free">Freehand</option>
+        <option value="line">Line</option>
+        <option value="rect">Rectangle</option>
+        <option value="square">Square</option>
+        <option value="circle">Circle</option>
+        <option value="image">Image</option>
+      </select>
+    </label>
+    <label>Import Image: <input type="file" id="imgUpload" accept="image/*"></label>
+    <button id="clearBtn">Clear</button>
+    <button id="saveBtn">Save</button>
+    <button id="downloadBtn">Download</button>
+    <button onclick="showPage('dashboard')">Back to Dashboard</button>
+    <button id="undoBtn">Undo</button>
+    <button id="redoBtn">Redo</button>
+    <button onclick="toggleLayers()">Layers</button>
+  </div>
+  <canvas id="canvas" width="1000" height="600"></canvas>
+  <div id="layersPanel" style="display:none;">
+    <h3>Layers</h3>
+    <div id="layersList"></div>
+  </div>
+  <div id="contextMenu" class="contextMenu">
+    <button onclick="deleteSelected()">Delete</button>
+    <button onclick="rotateSelected(-15)">Rotate -15°</button>
+    <button onclick="rotateSelected(15)">Rotate +15°</button>
+    <button onclick="bringToFront()">Bring to Front</button>
+    <button onclick="sendToBack()">Send to Back</button>
+  </div>
+</div>
+
+<label>Download as:
+  <select id="downloadFormat">
+    <option value="png">PNG</option>
+    <option value="svg">SVG</option>
+  </select>
+</label>
+<button id="downloadBtn">Download</button>
+
+<script>
+let currentPage='dashboard';
+const dashboard=document.getElementById('dashboard');
+const editor=document.getElementById('editor');
+function showPage(page){
+  currentPage=page;
+  dashboard.classList.remove('active'); editor.classList.remove('active');
+  if(page==='dashboard'){dashboard.classList.add('active'); loadDrawings();}
+  else editor.classList.add('active');
+}
+
+// Canvas
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+const colorPicker=document.getElementById('colorPicker');
+const lineWidth=document.getElementById('lineWidth');
+const shapeSelect=document.getElementById('shapeSelect');
+const imgUpload=document.getElementById('imgUpload');
+
+let objects=[], selected=null, drawing=false, startX=0, startY=0;
+let undoStack=[], redoStack=[];
+
+class DrawObject{
+  constructor(type,x1,y1,x2,y2,color,width,img=null,points=null, rotation=0){
+    this.type=type; this.x1=x1; this.y1=y1; this.x2=x2; this.y2=y2;
+    this.color=color; this.width=width; this.img=img; this.points=points; this.rotation=rotation;
+  }
+  contains(mx,my){
+    if(this.type==='rect'||this.type==='square'||this.type==='line'){
+      let minX=Math.min(this.x1,this.x2), maxX=Math.max(this.x1,this.x2);
+      let minY=Math.min(this.y1,this.y2), maxY=Math.max(this.y1,this.y2);
+      return mx>=minX && mx<=maxX && my>=minY && my<=maxY;
+    }
+    if(this.type==='circle'){
+      let radius=Math.hypot(this.x2-this.x1,this.y2-this.y1);
+      return Math.hypot(mx-this.x1,my-this.y1)<=radius;
+    }
+    if(this.type==='free' && this.points){
+      return this.points.some(p=>Math.hypot(mx-p[0],my-p[1])<this.width+3);
+    }
+    if(this.type==='image'){
+      let minX=Math.min(this.x1,this.x2), maxX=Math.max(this.x1,this.x2);
+      let minY=Math.min(this.y1,this.y2), maxY=Math.max(this.y1,this.y2);
+      return mx>=minX && mx<=maxX && my>=minY && my<=maxY;
+    }
+    return false;
+  }
+}
+
+// Draw all
+function drawAll(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  objects.forEach(obj=>{
+    ctx.save();
+    let cx=(obj.x1+obj.x2)/2, cy=(obj.y1+obj.y2)/2;
+    ctx.translate(cx,cy); ctx.rotate(obj.rotation*Math.PI/180);
+    ctx.strokeStyle=obj.color; ctx.lineWidth=obj.width; ctx.fillStyle=obj.color;
+    let dx=obj.x1-cx, dy=obj.y1-cy, w=obj.x2-obj.x1, h=obj.y2-obj.y1;
+    if(obj.type==='line'){ctx.beginPath(); ctx.moveTo(dx,dy); ctx.lineTo(obj.x2-cx,obj.y2-cy); ctx.stroke();}
+    else if(obj.type==='rect'||obj.type==='square'){ctx.strokeRect(dx,dy,w,h);}
+    else if(obj.type==='circle'){ctx.beginPath(); ctx.arc(dx,dy,Math.hypot(w,h),0,Math.PI*2); ctx.stroke();}
+    else if(obj.type==='free'&&obj.points){ctx.beginPath(); ctx.moveTo(obj.points[0][0]-cx,obj.points[0][1]-cy); obj.points.forEach(p=>ctx.lineTo(p[0]-cx,p[1]-cy)); ctx.stroke();}
+    else if(obj.type==='image'&&obj.img){ctx.drawImage(obj.img,dx,dy,w,h);}
+    ctx.restore();
+  });
+  updateLayersPanel();
+}
+
+// Undo/Redo
+function pushUndo(){ undoStack.push(JSON.stringify(objects.map(o=>({...o,img:o.img?o.img.src:null})))); }
+function undo(){ if(undoStack.length>0){ redoStack.push(JSON.stringify(objects.map(o=>({...o,img:o.img?o.img.src:null})))); objects=JSON.parse(undoStack.pop()); objects.forEach(o=>{ if(o.img) { let img=new Image(); img.src=o.img; o.img=img; } }); drawAll(); } }
+function redo(){ if(redoStack.length>0){ undoStack.push(JSON.stringify(objects.map(o=>({...o,img:o.img?o.img.src:null})))); objects=JSON.parse(redoStack.pop()); objects.forEach(o=>{ if(o.img){ let img=new Image(); img.src=o.img; } }); drawAll(); } }
+
+// Toolbar
+document.getElementById('clearBtn').onclick=()=>{ pushUndo(); objects=[]; drawAll(); }
+document.getElementById('undoBtn').onclick=undo;
+document.getElementById('redoBtn').onclick=redo;
+document.getElementById('downloadBtn').onclick=()=>{
+  drawAll(); const link=document.createElement('a'); link.download='drawing.png'; link.href=canvas.toDataURL(); link.click();
+}
+
+// Save/Load
+document.getElementById('saveBtn').onclick=()=>{
+  let name=prompt("Enter drawing name:"); if(!name)return;
+  localStorage.setItem("drawing_"+name,JSON.stringify(objects.map(o=>({...o,img:o.img?o.img.src:null}))));
+  alert("Saved!"); loadDrawings();
+}
+function loadDrawings(){
+  const list=document.getElementById('drawingsList'); list.innerHTML='';
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(key.startsWith('drawing_')){
+      const li=document.createElement('li'); li.textContent=key.replace('drawing_','');
+      li.onclick=()=>{ let data=JSON.parse(localStorage.getItem(key)); objects=data.map(o=>{ if(o.img){ let img=new Image(); img.src=o.img; o.img=img;} return o; }); drawAll(); showPage('editor'); };
+      list.appendChild(li);
+    }
+  }
+}
+loadDrawings();
+
+// Layers Panel
+const layersPanel=document.getElementById('layersPanel');
+function toggleLayers(){ layersPanel.style.display=(layersPanel.style.display==='none')?'block':'none'; }
+const layersList=document.getElementById('layersList');
+function updateLayersPanel(){
+  layersList.innerHTML='';
+  objects.slice().reverse().forEach((obj,i)=>{
+    const li=document.createElement('div'); li.className='layerItem'+(obj===selected?' selected':''); li.textContent=obj.type+' '+(objects.length-i);
+    li.onclick=()=>{ selected=obj; drawAll(); };
+    layersList.appendChild(li);
+  });
+}
+
+// Context Menu
+const contextMenu=document.getElementById('contextMenu');
+canvas.addEventListener('contextmenu',e=>{ e.preventDefault();
+  const mx=e.offsetX,my=e.offsetY;
+  selected=null;
+  for(let i=objects.length-1;i>=0;i--){ if(objects[i].contains(mx,my)){ selected=objects[i]; break; }}
+  if(selected){ contextMenu.style.left=e.pageX+'px'; contextMenu.style.top=e.pageY+'px'; contextMenu.style.display='block'; drawAll(); } else { contextMenu.style.display='none'; drawAll(); }
+});
+document.addEventListener('click',()=>{ contextMenu.style.display='none'; });
+
+// Context Menu Functions
+function deleteSelected(){ if(selected){ pushUndo(); objects=objects.filter(o=>o!==selected); selected=null; drawAll(); } }
+function rotateSelected(deg){ if(selected){ pushUndo(); selected.rotation+=deg; drawAll(); } }
+function bringToFront(){ if(selected){ pushUndo(); objects=objects.filter(o=>o!==selected); objects.push(selected); drawAll(); } }
+function sendToBack(){ if(selected){ pushUndo(); objects=objects.filter(o=>o!==selected); objects.unshift(selected); drawAll(); } }
+
+// Canvas Mouse Events
+canvas.addEventListener('mousedown',e=>{
+  startX=e.offsetX; startY=e.offsetY;
+  if(shapeSelect.value==='free'){ drawing=true; pushUndo(); objects.push(new DrawObject('free',startX,startY,startX,startY,colorPicker.value,lineWidth.value, null, [[startX,startY]])); selected=objects[objects.length-1]; }
+});
+canvas.addEventListener('mousemove',e=>{
+  if(drawing && selected && selected.type==='free'){ selected.points.push([e.offsetX,e.offsetY]); drawAll(); }
+});
+canvas.addEventListener('mouseup',e=>{
+  if(drawing && selected){ drawing=false; drawAll(); }
+});
+
+// Image Import
+imgUpload.addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file)return;
+  const img=new Image(); img.onload=()=>{
+    pushUndo(); objects.push(new DrawObject('image',50,50,300,300,colorPicker.value,lineWidth.value,img)); drawAll();
+  }; img.src=URL.createObjectURL(file);
+});
+
+// Simple Rotation Shortcut
+document.addEventListener('keydown',e=>{
+  if(e.key==='Delete'){ deleteSelected(); }
+  if(e.ctrlKey && e.key==='z'){ undo(); }
+  if(e.ctrlKey && e.key==='y'){ redo(); }
+});
+
+document.getElementById('downloadBtn').onclick = () => {
+  const format = document.getElementById('downloadFormat').value;
+
+  if (format === 'png') {
+    drawAll(); // ensure canvas is up-to-date
+    const link = document.createElement('a');
+    link.download = 'drawing.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } else if (format === 'svg') {
+    // Generate SVG
+    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}">`;
+
+    objects.forEach(obj => {
+      if(obj.type==='line'){
+        svgContent += `<line x1="${obj.x1}" y1="${obj.y1}" x2="${obj.x2}" y2="${obj.y2}" stroke="${obj.color}" stroke-width="${obj.width}" />`;
+      } else if(obj.type==='rect' || obj.type==='square'){
+        let w = obj.x2-obj.x1, h=obj.y2-obj.y1;
+        svgContent += `<rect x="${obj.x1}" y="${obj.y1}" width="${w}" height="${h}" stroke="${obj.color}" stroke-width="${obj.width}" fill="none" transform="rotate(${obj.rotation}, ${(obj.x1+obj.x2)/2}, ${(obj.y1+obj.y2)/2})"/>`;
+      } else if(obj.type==='circle'){
+        let r = Math.hypot(obj.x2-obj.x1,obj.y2-obj.y1);
+        svgContent += `<circle cx="${obj.x1}" cy="${obj.y1}" r="${r}" stroke="${obj.color}" stroke-width="${obj.width}" fill="none" transform="rotate(${obj.rotation}, ${obj.x1}, ${obj.y1})"/>`;
+      } else if(obj.type==='free'){
+        if(obj.points){
+          let path = obj.points.map((p,i)=> (i===0?'M':'L')+p[0]+' '+p[1]).join(' ');
+          svgContent += `<path d="${path}" stroke="${obj.color}" stroke-width="${obj.width}" fill="none"/>`;
+        }
+      }
+      // Images in SVG: optional, requires base64
+      else if(obj.type==='image' && obj.img){
+        const imgData = obj.img.src;
+        let w = obj.x2-obj.x1, h=obj.y2-obj.y1;
+        svgContent += `<image href="${imgData}" x="${obj.x1}" y="${obj.y1}" width="${w}" height="${h}" transform="rotate(${obj.rotation}, ${(obj.x1+obj.x2)/2}, ${(obj.y1+obj.y2)/2})"/>`;
+      }
+    });
+
+    svgContent += '</svg>';
+
+    const blob = new Blob([svgContent], {type:'image/svg+xml'});
+    const link = document.createElement('a');
+    link.download = 'drawing.svg';
+    link.href = URL.createObjectURL(blob);
+    link.click();
+  }
+};
+
+</script>
+</body>
+</html>
