@@ -6,14 +6,11 @@
 <title>Mini Classroom Full</title>
 <style>
 body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin:0; padding:0; background:#f1f3f4; color:#202124; }
-header { background:#1a73e8; color:white; padding:15px 20px; font-size:1.5em; font-weight:500; box-shadow:0 2px 4px rgba(0,0,0,0.1); }
+header { background:#1a73e8; color:white; padding:15px 20px; font-size:1.5em; font-weight:500; }
 .container { max-width:1000px; margin:auto; padding:20px; }
-button { padding:10px 20px; margin:5px 0; cursor:pointer; border:none; border-radius:8px; background:linear-gradient(90deg,#1a73e8,#4285f4); color:white; font-weight:500; transition: all 0.2s ease; }
-button:hover { transform: translateY(-2px); box-shadow:0 4px 8px rgba(0,0,0,0.2); }
-input, textarea, select { padding:12px; margin:5px 0 15px 0; width:100%; box-sizing:border-box; border:1px solid #dadce0; border-radius:8px; font-size:1em; }
-.card { background:white; padding:20px; margin:10px 0; border-radius:12px; box-shadow:0 2px 5px rgba(0,0,0,0.1); transition: all 0.2s ease; }
-.card:hover { box-shadow:0 6px 15px rgba(0,0,0,0.15); }
-h2,h3 { margin:0; }
+button { padding:10px 20px; margin:5px 0; cursor:pointer; border:none; border-radius:8px; background:#4285f4; color:white; }
+input, select, textarea { padding:12px; margin:5px 0 15px 0; width:100%; box-sizing:border-box; border:1px solid #ccc; border-radius:8px; }
+.card { background:white; padding:20px; margin:10px 0; border-radius:12px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
 .hidden { display:none; }
 .submitted { color:green; font-weight:600; }
 .graded { color:blue; font-weight:600; }
@@ -23,17 +20,17 @@ h2,h3 { margin:0; }
 </head>
 <body>
 
-<header>Mini Classroom Full</header>
+<header>Mini Classroom</header>
 
 <!-- Setup Screen -->
 <div class="container" id="setupScreen">
-  <h2>Welcome to Mini Classroom</h2>
+  <h2>Welcome</h2>
   <p>Select your role:</p>
-  <button id="setupTeacherBtn">Teacher</button>
-  <button id="setupStudentBtn">Student</button>
-  <div id="studentNameInput" class="hidden">
-    <input type="text" id="studentNameSetup" placeholder="Enter your name">
-    <button id="finishSetupBtn">Continue</button>
+  <button id="teacherBtn">Teacher</button>
+  <button id="studentBtn">Student</button>
+  <div id="studentNameDiv" class="hidden">
+    <input type="text" id="studentNameInput" placeholder="Enter your name">
+    <button id="studentContinueBtn">Continue</button>
   </div>
 </div>
 
@@ -41,17 +38,18 @@ h2,h3 { margin:0; }
 <div class="container hidden" id="teacherDashboard">
   <h2>Teacher Dashboard</h2>
   <div class="dashboard" id="teacherSummary"></div>
-  <button onclick="goToTeacherPage()">Go to Classroom Management</button>
+  <button onclick="goToTeacherPage()">Manage Classrooms</button>
 </div>
 
 <!-- Teacher Page -->
 <div class="container hidden" id="teacherPage">
   <h2>Classroom Management</h2>
   <select id="teacherClassSelect" onchange="switchTeacherClass()"></select>
+
   <h3>Create Classroom</h3>
   <input type="text" id="className" placeholder="Classroom Name">
   <button onclick="createClassroom()">Create Classroom</button>
-  <div id="teacherClassInfo"></div>
+  <p id="teacherClassInfo"></p>
 
   <h3>Add Assignment</h3>
   <input type="text" id="assignmentTitle" placeholder="Assignment Title">
@@ -82,74 +80,60 @@ h2,h3 { margin:0; }
 <!-- Student Page -->
 <div class="container hidden" id="studentPage">
   <h2>Classrooms</h2>
+  <input type="text" id="joinCodeInput" placeholder="Enter Classroom Code">
+  <button onclick="joinClass()">Join Classroom</button>
   <select id="studentClassSelect" onchange="switchStudentClass()"></select>
+
+  <h3>Notifications</h3>
   <div id="studentNotifications"></div>
+
+  <h3>Materials</h3>
   <div id="studentMaterials"></div>
+
+  <h3>Assignments</h3>
   <div id="studentAssignments"></div>
+
   <button onclick="backToDashboard('student')">Back to Dashboard</button>
 </div>
 
 <script>
-// Global data
+// Data
 let classrooms = JSON.parse(localStorage.getItem('classrooms')) || [];
-let currentClass = null;
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+let currentClass = null;
 
-// Setup Screen
-function showRole(role){
-  if(role==='teacher'){ updateTeacherDashboard(); document.getElementById('teacherDashboard').classList.remove('hidden'); updateTeacherClassSelect(); }
-  else{ updateStudentDashboard(); document.getElementById('studentDashboard').classList.remove('hidden'); updateStudentClassSelect(); }
-}
-document.addEventListener("DOMContentLoaded", ()=>{
-  // Setup buttons
-  const setupTeacherBtn = document.getElementById('setupTeacherBtn');
-  const setupStudentBtn = document.getElementById('setupStudentBtn');
-  const finishSetupBtn = document.getElementById('finishSetupBtn');
+function saveData(){ localStorage.setItem('classrooms', JSON.stringify(classrooms)); }
 
-  setupTeacherBtn.onclick = ()=>{
-    currentUser = {role:'teacher'};
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    document.getElementById('setupScreen').classList.add('hidden');
-    showRole('teacher');
-  };
-  setupStudentBtn.onclick = ()=>{
-    document.getElementById('studentNameInput').classList.remove('hidden');
-  };
-  finishSetupBtn.onclick = ()=>{
-    const name=document.getElementById('studentNameSetup').value.trim();
-    if(!name) return alert('Enter your name');
-    currentUser = {role:'student', name};
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    document.getElementById('setupScreen').classList.add('hidden');
-    showRole('student');
-  };
+// Setup
+function hideSetup(){ document.getElementById('setupScreen').classList.add('hidden'); }
+function showTeacherDashboard(){ document.getElementById('teacherDashboard').classList.remove('hidden'); updateTeacherDashboard(); updateTeacherClassSelect(); }
+function showStudentDashboard(){ document.getElementById('studentDashboard').classList.remove('hidden'); updateStudentDashboard(); updateStudentClassSelect(); }
 
-  // Auto-load user
-  if(currentUser){
-    document.getElementById('setupScreen').classList.add('hidden');
-    showRole(currentUser.role);
-  }
-});
+document.getElementById('teacherBtn').onclick = ()=>{
+  currentUser = {role:'teacher'};
+  localStorage.setItem('currentUser', JSON.stringify(currentUser));
+  hideSetup(); showTeacherDashboard();
+};
+document.getElementById('studentBtn').onclick = ()=>{ document.getElementById('studentNameDiv').classList.remove('hidden'); };
+document.getElementById('studentContinueBtn').onclick = ()=>{
+  const name = document.getElementById('studentNameInput').value.trim();
+  if(!name){ alert('Enter name'); return; }
+  currentUser = {role:'student', name};
+  localStorage.setItem('currentUser', JSON.stringify(currentUser));
+  hideSetup(); showStudentDashboard();
+};
 
-// Navigation
+// Teacher Functions
 function goToTeacherPage(){ document.getElementById('teacherDashboard').classList.add('hidden'); document.getElementById('teacherPage').classList.remove('hidden'); displayTeacherAssignments(); }
-function goToStudentPage(){ document.getElementById('studentDashboard').classList.add('hidden'); document.getElementById('studentPage').classList.remove('hidden'); displayStudentMaterials(); displayStudentAssignments(); updateStudentNotifications(); }
-function backToDashboard(role){ if(role==='teacher'){ document.getElementById('teacherPage').classList.add('hidden'); updateTeacherDashboard(); document.getElementById('teacherDashboard').classList.remove('hidden'); } else{ document.getElementById('studentPage').classList.add('hidden'); updateStudentDashboard(); document.getElementById('studentDashboard').classList.remove('hidden'); } }
-
-// Teacher functions
 function createClassroom(){
   const name = document.getElementById('className').value.trim();
   if(!name) return alert('Enter classroom name');
   const code = Math.random().toString(36).substring(2,8).toUpperCase();
-  const classroom = { name, code, assignments: [], materials: [], students: [] };
-  classrooms.push(classroom);
-  currentClass = classroom;
-  saveData();
-  document.getElementById('teacherClassInfo').innerHTML = `<p>Classroom Created! Code: <b>${code}</b></p>`;
-  updateTeacherClassSelect();
-  displayTeacherAssignments();
+  const classroom = {name, code, assignments:[], materials:[], students:[]};
+  classrooms.push(classroom); currentClass=classroom; saveData();
+  document.getElementById('teacherClassInfo').innerText = `Class Code: ${code}`;
+  updateTeacherClassSelect(); displayTeacherAssignments();
 }
-
 function addAssignment(){
   if(!currentClass) return alert('Select or create a classroom first');
   const title=document.getElementById('assignmentTitle').value.trim();
@@ -159,7 +143,6 @@ function addAssignment(){
   currentClass.assignments.push({title, description:desc, dueDate:due, submissions:[]});
   saveData(); displayTeacherAssignments();
 }
-
 function addMaterial(){
   if(!currentClass) return alert('Select or create a classroom first');
   const title=document.getElementById('materialTitle').value.trim();
@@ -172,38 +155,16 @@ function addMaterial(){
   };
   reader.readAsDataURL(fileInput.files[0]);
 }
-
-// Display functions and dashboards
 function displayTeacherAssignments(){
   const container=document.getElementById('teacherAssignments'); container.innerHTML='';
   if(!currentClass) return;
-  currentClass.materials.forEach((m)=>{
-    const div=document.createElement('div'); div.className='card';
-    div.innerHTML=`<b>Material:</b> ${m.title} <a href="${m.fileData}" download="${m.fileName}">Download</a>`;
-    container.appendChild(div);
-  });
+  currentClass.materials.forEach((m)=>{ const div=document.createElement('div'); div.className='card'; div.innerHTML=`Material: ${m.title} <a href="${m.fileData}" download="${m.fileName}">Download</a>`; container.appendChild(div); });
   currentClass.assignments.forEach((a)=>{
     const div=document.createElement('div'); div.className='card';
-    div.innerHTML=`<b>Assignment:</b> ${a.title}<br>${a.description}<br>Due: ${a.dueDate}<br>
-      <b>Submissions:</b> ${a.submissions.length}`;
-    a.submissions.forEach(s=>{
-      div.innerHTML+=`<br>${s.studentName}: <a href="${s.fileData}" download="${s.fileName}">${s.fileName}</a>
-      ${s.grade?'<span class="graded"> Grade: '+s.grade+'</span>':''}
-      <input type="text" placeholder="Grade" id="grade_${currentClass.code}_${a.title}_${s.studentName}">
-      <button onclick="gradeSubmission('${a.title}','${s.studentName}')">Submit Grade</button>`;
-    });
+    div.innerHTML=`Assignment: ${a.title}<br>${a.description}<br>Due: ${a.dueDate}<br>Submissions: ${a.submissions.length}`;
     container.appendChild(div);
   });
 }
-
-function gradeSubmission(assignmentTitle, studentName){
-  const gradeInput=document.getElementById(`grade_${currentClass.code}_${assignmentTitle}_${studentName}`);
-  const assignment=currentClass.assignments.find(a=>a.title===assignmentTitle);
-  const submission=assignment.submissions.find(s=>s.studentName===studentName);
-  submission.grade=gradeInput.value;
-  saveData(); displayTeacherAssignments();
-}
-
 function updateTeacherDashboard(){
   const container=document.getElementById('teacherSummary'); container.innerHTML='';
   classrooms.forEach(c=>{
@@ -216,7 +177,6 @@ function updateTeacherDashboard(){
     container.appendChild(div);
   });
 }
-
 function updateTeacherClassSelect(){
   const select=document.getElementById('teacherClassSelect'); select.innerHTML='';
   classrooms.forEach((c,i)=>{
@@ -225,35 +185,20 @@ function updateTeacherClassSelect(){
     select.appendChild(option);
   });
 }
+function switchTeacherClass(){ const i=document.getElementById('teacherClassSelect').value; currentClass=classrooms[i]; displayTeacherAssignments(); }
+function downloadJSON(){ const dataStr="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(classrooms,null,2)); const a=document.createElement('a'); a.href=dataStr; a.download="classrooms.json"; document.body.appendChild(a); a.click(); a.remove(); }
+function backToDashboard(role){ if(role==='teacher'){ document.getElementById('teacherPage').classList.add('hidden'); showTeacherDashboard(); } else{ document.getElementById('studentPage').classList.add('hidden'); showStudentDashboard(); } }
 
-function switchTeacherClass(){
-  const i=document.getElementById('teacherClassSelect').value;
-  currentClass=classrooms[i];
-  displayTeacherAssignments();
+// Student Functions
+function goToStudentPage(){ document.getElementById('studentDashboard').classList.add('hidden'); document.getElementById('studentPage').classList.remove('hidden'); renderStudentClassSelect(); renderStudentAssignments(); renderStudentMaterials(); updateStudentNotifications(); }
+function joinClass(){
+  const code=document.getElementById('joinCodeInput').value.trim();
+  const classroom=classrooms.find(c=>c.code===code); if(!classroom) return alert('Class not found');
+  currentClass=classroom;
+  if(!currentClass.students.includes(currentUser.name)) currentClass.students.push(currentUser.name);
+  saveData(); renderStudentClassSelect(); renderStudentAssignments(); renderStudentMaterials(); updateStudentNotifications(); updateStudentDashboard();
 }
-
-function saveData(){ localStorage.setItem('classrooms', JSON.stringify(classrooms)); }
-function downloadJSON(){
-  const dataStr="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(classrooms,null,2));
-  const a=document.createElement('a'); a.href=dataStr; a.download="classrooms.json"; document.body.appendChild(a); a.click(); a.remove();
-}
-
-// Student functions
-function updateStudentDashboard(){
-  const container=document.getElementById('studentSummary'); container.innerHTML='';
-  classrooms.forEach(c=>{
-    if(c.students.includes(currentUser.name)){
-      const assignments=c.assignments.length;
-      let due=0;
-      c.assignments.forEach(a=>{const s=a.submissions.find(s=>s.studentName===currentUser.name); if(!s) due++});
-      const div=document.createElement('div'); div.className='card';
-      div.innerHTML=`<h3>${c.name}</h3><p>Total Assignments: ${assignments}</p><p>Pending Submissions: ${due}</p>`;
-      container.appendChild(div);
-    }
-  });
-}
-
-function updateStudentClassSelect(){
+function renderStudentClassSelect(){
   const select=document.getElementById('studentClassSelect'); select.innerHTML='';
   classrooms.forEach(c=>{
     if(c.students.includes(currentUser.name)){
@@ -263,67 +208,71 @@ function updateStudentClassSelect(){
     }
   });
 }
-
-function joinClass(code){
-  const classroom=classrooms.find(c=>c.code===code);
-  if(!classroom) return alert('Class not found');
-  currentClass=classroom;
-  if(!classroom.students.includes(currentUser.name)) classroom.students.push(currentUser.name);
-  saveData(); displayStudentMaterials(); displayStudentAssignments(); updateStudentNotifications(); updateStudentDashboard(); updateStudentClassSelect();
-}
-
 function switchStudentClass(){
   const code=document.getElementById('studentClassSelect').value;
-  joinClass(code);
+  const classroom=classrooms.find(c=>c.code===code); if(!classroom) return;
+  currentClass=classroom;
+  renderStudentAssignments(); renderStudentMaterials(); updateStudentNotifications();
 }
-
-function displayStudentMaterials(){
+function renderStudentMaterials(){
   const container=document.getElementById('studentMaterials'); container.innerHTML='';
-  currentClass.materials.forEach(m=>{
-    const div=document.createElement('div'); div.className='card';
-    div.innerHTML=`${m.title}: <a href="${m.fileData}" download="${m.fileName}">Download</a>`;
-    container.appendChild(div);
-  });
+  if(!currentClass) return;
+  currentClass.materials.forEach(m=>{ const div=document.createElement('div'); div.className='card'; div.innerHTML=`${m.title}: <a href="${m.fileData}" download="${m.fileName}">Download</a>`; container.appendChild(div); });
 }
-
-function displayStudentAssignments(){
+function renderStudentAssignments(){
   const container=document.getElementById('studentAssignments'); container.innerHTML='';
+  if(!currentClass) return;
   currentClass.assignments.forEach((a,i)=>{
     const div=document.createElement('div'); div.className='card';
-    const submitted=a.submissions.find(s=>s.studentName===currentUser.name);
-    div.innerHTML=`<b>${a.title}</b><br>${a.description}<br>Due: ${a.dueDate}<br>
-      Status: ${submitted ? 'Submitted'+(submitted.grade?(' | Grade: '+submitted.grade):''):'Not Submitted'}
-      <input type="file" id="file_${i}"><button onclick="submitAssignment(${i})">Submit Assignment</button>`;
+    const submitted=a.submissions.find(s=>s.name===currentUser.name);
+    div.innerHTML=`<b>${a.title}</b><br>${a.description}<br>Due: ${a.dueDate}<br>Status: ${submitted?'Submitted':'Not Submitted'}
+    <input type="file" id="file_${i}"><button onclick="submitAssignment(${i})">Submit</button>`;
     container.appendChild(div);
   });
 }
-
 function submitAssignment(index){
-  const fileInput=document.getElementById('file_'+index);
-  if(!fileInput.files[0]) return alert('Select a file');
+  const input=document.getElementById(`file_${index}`);
+  if(!input.files[0]) return alert('Select a file');
   const reader=new FileReader();
-  reader.onload=function(e){
+  reader.onload=(e)=>{
     const assignment=currentClass.assignments[index];
-    const existing=assignment.submissions.find(s=>s.studentName===currentUser.name);
-    if(existing) existing.fileData=e.target.result, existing.fileName=fileInput.files[0].name;
-    else assignment.submissions.push({studentName:currentUser.name, fileName:fileInput.files[0].name, fileData:e.target.result});
-    saveData(); displayStudentAssignments(); displayTeacherAssignments(); updateStudentNotifications(); updateStudentDashboard();
+    const existing=assignment.submissions.find(s=>s.name===currentUser.name);
+    if(existing) existing.fileData=e.target.result;
+    else assignment.submissions.push({name:currentUser.name, fileData:e.target.result});
+    saveData(); renderStudentAssignments(); renderStudentMaterials(); updateStudentNotifications(); updateStudentDashboard();
   };
-  reader.readAsDataURL(fileInput.files[0]);
+  reader.readAsDataURL(input.files[0]);
 }
-
 function updateStudentNotifications(){
   const container=document.getElementById('studentNotifications'); container.innerHTML='';
+  if(!currentClass) return;
   const now=new Date();
   currentClass.assignments.forEach(a=>{
     const due=new Date(a.dueDate);
-    const submitted=a.submissions.find(s=>s.studentName===currentUser.name);
+    const submitted=a.submissions.find(s=>s.name===currentUser.name);
     if(!submitted && (due-now)/(1000*60*60*24)<=3){
+      const div=document.createElement('div'); div.className='card'; div.innerHTML=`⚠️ Assignment "${a.title}" is due on ${a.dueDate}`; container.appendChild(div);
+    }
+  });
+}
+function updateStudentDashboard(){
+  const container=document.getElementById('studentSummary'); container.innerHTML='';
+  classrooms.forEach(c=>{
+    if(c.students.includes(currentUser.name)){
+      const assignments=c.assignments.length;
+      let due=0; c.assignments.forEach(a=>{ if(!a.submissions.find(s=>s.name===currentUser.name)) due++; });
       const div=document.createElement('div'); div.className='card';
-      div.innerHTML=`⚠️ Assignment "${a.title}" is due on ${a.dueDate}`;
+      div.innerHTML=`<h3>${c.name}</h3><p>Total Assignments: ${assignments}</p><p>Pending Submissions: ${due}</p>`;
       container.appendChild(div);
     }
   });
+}
+
+// Auto-load user
+if(currentUser){
+  hideSetup();
+  if(currentUser.role==='teacher') showTeacherDashboard();
+  else showStudentDashboard();
 }
 </script>
 
