@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Betnix TV - Netflix Style</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body {
+  margin:0;
+  font-family:'Roboto',sans-serif;
+  background:#111;
+  color:#fff;
+}
+header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:15px 30px;
+  background:#141414;
+  position:sticky;
+  top:0;
+  z-index:10;
+}
+header h1 {
+  font-size:28px;
+  margin:0;
+  color:#e50914;
+}
+#fileInput {
+  display:none;
+}
+.chooseBtn {
+  padding:8px 15px;
+  background:#e50914;
+  color:#fff;
+  border:none;
+  border-radius:5px;
+  cursor:pointer;
+  font-weight:700;
+  transition:0.2s;
+}
+.chooseBtn:hover { background:#ff3f3f; }
+.tabs {
+  display:flex;
+  overflow-x:auto;
+  padding:10px 20px;
+  background:#1f1f1f;
+}
+.tabs button {
+  background:#333;
+  border:none;
+  margin-right:10px;
+  padding:10px 20px;
+  color:#fff;
+  border-radius:5px;
+  cursor:pointer;
+  transition:0.2s;
+  white-space:nowrap;
+}
+.tabs button.active, .tabs button:hover {
+  background:#e50914;
+}
+#moviesDashboard {
+  display:flex;
+  flex-direction:column;
+  gap:30px;
+  padding:20px;
+}
+.categoryRow {
+  display:flex;
+  overflow-x:auto;
+  gap:15px;
+  scroll-behavior:smooth;
+}
+.movieCard {
+  min-width:200px;
+  background:#222;
+  border-radius:10px;
+  overflow:hidden;
+  cursor:pointer;
+  transition:transform 0.3s;
+  flex-shrink:0;
+}
+.movieCard:hover { transform:scale(1.05); }
+.movieCard img {
+  width:100%;
+  height:300px;
+  object-fit:cover;
+}
+.movieCard .info {
+  padding:10px;
+}
+.movieCard .info h3 { margin:5px 0; font-size:16px; color:white; }
+.movieCard .info p { margin:0; font-size:13px; color:#ccc; }
+#playerContainer {
+  margin:20px;
+  text-align:center;
+}
+#player {
+  width:80%;
+  max-height:500px;
+  border-radius:10px;
+  background:#000;
+}
+.movieCard .editBtn {
+  margin-top:5px;
+  padding:4px 8px;
+  font-size:12px;
+  background:#e50914;
+  color:white;
+  border:none;
+  border-radius:3px;
+  cursor:pointer;
+}
+.movieCard .editBtn:hover { background:#ff3f3f; }
+</style>
+</head>
+<body>
+
+<header>
+<h1>Betnix TV</h1>
+<label class="chooseBtn" for="fileInput">Choose Files</label>
+<input type="file" id="fileInput" multiple accept="video/*">
+</header>
+
+<div class="tabs" id="categoryTabs">
+  <button class="active">All</button>
+  <button>Movies</button>
+  <button>Shows</button>
+  <button>Kids</button>
+  <button>Adult</button>
+</div>
+
+<div id="moviesDashboard"></div>
+<div id="playerContainer">
+<video id="player" controls></video>
+</div>
+
+<script>
+const fileInput = document.getElementById("fileInput");
+const categoryTabs = document.getElementById("categoryTabs");
+const moviesDashboard = document.getElementById("moviesDashboard");
+const player = document.getElementById("player");
+
+const categories = ["All","Movies","Shows","Kids","Adult"];
+let moviesData = []; // {file, name, category, thumbnail, duration, type, description}
+
+// Capture thumbnail & duration
+function processVideo(file, callback){
+  const video = document.createElement("video");
+  video.preload="metadata";
+  video.src = URL.createObjectURL(file);
+  video.addEventListener("loadedmetadata", ()=>{
+    const duration = video.duration;
+    video.currentTime = 1;
+    video.addEventListener("seeked", ()=>{
+      const canvas = document.createElement("canvas");
+      canvas.width=200;
+      canvas.height=120;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video,0,0,canvas.width,canvas.height);
+      const thumbnail = canvas.toDataURL();
+      callback({duration, thumbnail});
+    }, {once:true});
+  });
+}
+
+function formatDuration(d){
+  const min=Math.floor(d/60), sec=Math.floor(d%60);
+  return `${min}:${sec<10?"0"+sec:sec}`;
+}
+
+// Add movies
+fileInput.addEventListener("change", e=>{
+  const files = Array.from(e.target.files);
+  files.forEach(file=>{
+    // default category
+    const category = "Movies";
+    processVideo(file, ({duration, thumbnail})=>{
+      const description = `${file.type}, ${formatDuration(duration)}`;
+      moviesData.push({file, name:file.name, category, thumbnail, duration, type:file.type, description});
+      showCategory(getActiveCategory());
+    });
+  });
+});
+
+// Tabs
+Array.from(categoryTabs.children).forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    Array.from(categoryTabs.children).forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    showCategory(btn.textContent);
+  });
+});
+
+function getActiveCategory(){
+  return Array.from(categoryTabs.children).find(b=>b.classList.contains("active")).textContent;
+}
+
+// Show movies
+function showCategory(category){
+  moviesDashboard.innerHTML="";
+  categories.forEach(cat=>{
+    if(category!=="All" && cat!==category) return;
+    const row = document.createElement("div");
+    row.className="categoryRow";
+    const moviesInCat = moviesData.filter(m=>cat==="All"?true:m.category===cat);
+    moviesInCat.forEach(m=>{
+      const card = document.createElement("div");
+      card.className="movieCard";
+      card.innerHTML = `<img src="${m.thumbnail}"><div class="info"><h3>${m.name}</h3><p>${m.description}</p><button class="editBtn">Edit</button></div>`;
+      card.onclick = e=>{
+        if(e.target.classList.contains("editBtn")){
+          e.stopPropagation();
+          const newCategory = prompt("Enter category (Movies, Shows, Kids, Adult):", m.category);
+          const newDesc = prompt("Enter description:", m.description);
+          if(newCategory) m.category=newCategory;
+          if(newDesc) m.description=newDesc;
+          showCategory(getActiveCategory());
+          return;
+        }
+        player.src = URL.createObjectURL(m.file);
+        player.play();
+      };
+      row.appendChild(card);
+    });
+    if(moviesInCat.length>0){
+      const title = document.createElement("h2");
+      title.textContent=cat;
+      moviesDashboard.appendChild(title);
+      moviesDashboard.appendChild(row);
+    }
+  });
+}
+</script>
+</body>
+</html>
