@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Betnix Photos — Local Photo Manager</title>
+<style>
+  :root{
+    --bg:#0f1724;
+    --card:#0b1220;
+    --muted:#9aa4b2;
+    --accent:#4f46e5;
+    --accent-2:#06b6d4;
+    --glass: rgba(255,255,255,0.03);
+    color-scheme: dark;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#071023 0%, #071b2a 100%);color:#e6eef8}
+  header{display:flex;align-items:center;gap:16px;padding:14px 20px;background:linear-gradient(90deg, rgba(255,255,255,0.02), transparent);box-shadow:0 2px 8px rgba(2,6,23,0.6)}
+  header h1{font-size:18px;margin:0;letter-spacing:0.4px}
+  .container{display:flex;height:calc(100vh - 64px)}
+  nav{width:260px;min-width:200px;border-right:1px solid rgba(255,255,255,0.02);padding:18px;box-sizing:border-box}
+  main{flex:1;padding:18px;overflow:auto}
+  .uploader{border:2px dashed rgba(255,255,255,0.04); padding:16px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);display:flex;gap:12px;align-items:center}
+  .btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+  .small{padding:6px 8px;font-size:13px}
+  .albums{margin-top:18px}
+  .album{padding:10px;border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;background:var(--glass)}
+  .search{display:flex;gap:8px;margin-bottom:12px}
+  input[type="text"], input[type="search"]{background:transparent;border:1px solid rgba(255,255,255,0.04);padding:8px;border-radius:8px;color:inherit;outline:none;flex:1}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:14px}
+  .card{position:relative;border-radius:10px;overflow:hidden;background:#071226;height:160px;display:flex;align-items:center;justify-content:center}
+  .card img{width:100%;height:100%;object-fit:cover;display:block}
+  .badge{position:absolute;right:8px;top:8px;background:rgba(0,0,0,0.4);padding:6px;border-radius:8px;font-size:12px}
+  .meta{padding:8px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  .modal{position:fixed;inset:0;background:linear-gradient(180deg, rgba(2,6,23,0.6), rgba(2,6,23,0.9));display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal.open{display:flex}
+  .viewer{width:90%;height:85%;background:var(--card);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+  .viewer-top{display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)}
+  .viewer-body{flex:1;display:flex;align-items:center;justify-content:center;position:relative;background:#05101a}
+  .viewer-body img{max-width:100%;max-height:100%}
+  .controls{display:flex;gap:8px}
+  .tags{display:flex;gap:6px;flex-wrap:wrap}
+  .tag{background:rgba(255,255,255,0.04);padding:6px 8px;border-radius:999px;font-size:13px;color:var(--muted)}
+  .toast{position:fixed;right:20px;bottom:20px;background:#0b1220;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.02)}
+  .empty{padding:40px;text-align:center;color:var(--muted)}
+  footer{padding:10px 20px;border-top:1px solid rgba(255,255,255,0.02);font-size:13px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  .flex{display:flex;align-items:center;gap:8px}
+  .album-list{max-height:40vh;overflow:auto;padding-right:6px}
+  .hidden{display:none}
+  /* simple responsive */
+  @media (max-width:800px){
+    nav{display:none}
+    .viewer{width:100%;height:100%}
+  }
+</style>
+</head>
+<body>
+<header>
+  <img src="https://i.imgur.com/t6RfTyF.png" alt="" style="width:36px;height:36px;border-radius:8px;background:linear-gradient(90deg,var(--accent),var(--accent-2))">
+  <h1>Betnix Photos</h1>
+  <div style="flex:1"></div>
+  <div class="flex">
+    <button class="btn small" id="importBtn">Import backup</button>
+    <button class="btn ghost small" id="exportBtn">Export backup</button>
+  </div>
+</header>
+
+<div class="container">
+  <nav>
+    <div class="uploader" id="dropZone">
+      <div style="flex:1">
+        <strong>Upload photos</strong>
+        <div style="font-size:13px;color:var(--muted)">Drag & drop or choose files</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <input id="fileInput" type="file" accept="image/*" multiple style="display:none">
+        <button class="btn small" id="pickBtn">Choose</button>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div class="search">
+        <input type="search" id="searchInput" placeholder="Search by filename or tag">
+        <button class="btn small" id="searchClear">Clear</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="btn small" id="newAlbumBtn">New Album</button>
+        <button class="btn small" id="slideshowBtn">Slideshow</button>
+      </div>
+    </div>
+
+    <div class="albums">
+      <strong style="color:var(--muted)">Albums</strong>
+      <div class="album-list" id="albumsList" style="margin-top:8px">
+        <!-- albums inserted here -->
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <strong style="color:var(--muted)">Actions</strong>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+        <button class="btn small" id="favFilter">Show favorites</button>
+        <button class="btn small ghost" id="clearAllBtn">Clear all (danger)</button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <div id="galleryArea">
+      <div id="gallery" class="gallery"></div>
+      <div id="empty" class="empty hidden">
+        No photos yet — upload some or import a backup.
+      </div>
+    </div>
+  </main>
+</div>
+
+<footer>
+  <div>Local only • Stored in your browser</div>
+  <div style="color:var(--muted)">Betnix Photos — offline photo manager</div>
+</footer>
+
+<!-- Modal viewer -->
+<div id="modal" class="modal" role="dialog" aria-hidden="true">
+  <div class="viewer" role="document">
+    <div class="viewer-top">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn small" id="prevBtn">&larr;</button>
+        <button class="btn small" id="nextBtn">&rarr;</button>
+      </div>
+      <div style="flex:1"></div>
+      <div class="controls">
+        <button class="btn small" id="rotateBtn">Rotate</button>
+        <button class="btn small" id="brightnessBtn">Brightness</button>
+        <button class="btn small" id="favToggle">♡</button>
+        <button class="btn small ghost" id="deleteBtn">Delete</button>
+        <button class="btn small ghost" id="closeBtn">Close</button>
+      </div>
+    </div>
+    <div class="viewer-body">
+      <canvas id="viewerCanvas" style="max-width:100%;max-height:100%;"></canvas>
+      <div class="meta" style="position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,0.35);padding:8px;border-radius:8px">
+        <div id="viewerFilename" style="font-weight:600"></div>
+        <div style="font-size:12px;color:var(--muted)" id="viewerInfo"></div>
+        <div style="margin-top:8px" class="tags" id="viewerTags"></div>
+        <button id="shareBtn">Share</button>
+      </div>
+    </div>
+    <div style="padding:10px;border-top:1px solid rgba(255,255,255,0.02);display:flex;gap:8px;align-items:center">
+      <input type="text" id="addTagInput" placeholder="Add tag and press Enter" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">
+      <select id="albumsSelect" style="padding:8px;border-radius:8px;background:transparent;color:inherit;border:1px solid rgba(255,255,255,0.04)">
+        <option value="">Add to album...</option>
+      </select>
+      <button class="btn small" id="applyAlbumBtn">Add</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+/*
+  Betnix Photos — single-file client-side photo manager
+  Uses IndexedDB to store images and metadata.
+*/
+
+/* ---------- IndexedDB helper ---------- */
+const DB_NAME = 'betnix_photos_v1';
+const DB_STORE = 'photos';
+const DB_ALBUM = 'albums';
+let dbPromise = null;
+
+function openDB(){
+  if(dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains(DB_STORE)){
+        const store = db.createObjectStore(DB_STORE, { keyPath: 'id' });
+        store.createIndex('filename', 'filename', { unique:false });
+        store.createIndex('tags', 'tags', { unique:false, multiEntry:true });
+        store.createIndex('favorite', 'favorite', { unique:false });
+        store.createIndex('createdAt', 'createdAt', { unique:false });
+      }
+      if(!db.objectStoreNames.contains(DB_ALBUM)){
+        const a = db.createObjectStore(DB_ALBUM, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = (e) => reject(e.target.error);
+  });
+  return dbPromise;
+}
+
+async function idbPut(storeName, value){
+  const db = await openDB();
+  return new Promise((resolve,reject) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    tx.objectStore(storeName).put(value);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = (e) => reject(e.target.error);
+  });
+}
+async function idbGetAll(storeName){
+  const db = await openDB();
+  return new Promise((resolve,reject) => {
+    const tx = db.transaction(storeName,'readonly');
+    const req = tx.objectStore(storeName).getAll();
+    req.onsuccess = e => resolve(e.target.result || []);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+async function idbGet(storeName, key){
+  const db = await openDB();
+  return new Promise((resolve,reject) => {
+    const tx = db.transaction(storeName,'readonly');
+    const req = tx.objectStore(storeName).get(key);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+async function idbDelete(storeName, key){
+  const db = await openDB();
+  return new Promise((resolve,reject) => {
+    const tx = db.transaction(storeName,'readwrite');
+    tx.objectStore(storeName).delete(key);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+async function idbClear(storeName){
+  const db = await openDB();
+  return new Promise((resolve,reject) => {
+    const tx = db.transaction(storeName,'readwrite');
+    tx.objectStore(storeName).clear();
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+/* ---------- Utilities ---------- */
+function uid(prefix='id'){
+  return prefix + '_' + Math.random().toString(36).slice(2,10);
+}
+function showToast(msg, ms=2500){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(()=>t.classList.add('hidden'), ms);
+}
+
+/* ---------- App State ---------- */
+let photos = []; // loaded metadata from IDB
+let albums = []; // {id,name,photoIds:[]}
+let activeFilter = null; // album id or 'favorites'
+let currentIndex = 0; // index in filteredPhotos for viewer
+let filteredPhotos = [];
+
+/* ---------- DOM refs ---------- */
+const fileInput = document.getElementById('fileInput');
+const pickBtn = document.getElementById('pickBtn');
+const dropZone = document.getElementById('dropZone');
+const gallery = document.getElementById('gallery');
+const emptyEl = document.getElementById('empty');
+const modal = document.getElementById('modal');
+const viewerCanvas = document.getElementById('viewerCanvas');
+const viewerFilename = document.getElementById('viewerFilename');
+const viewerInfo = document.getElementById('viewerInfo');
+const viewerTags = document.getElementById('viewerTags');
+const addTagInput = document.getElementById('addTagInput');
+const albumsList = document.getElementById('albumsList');
+const albumsSelect = document.getElementById('albumsSelect');
+const searchInput = document.getElementById('searchInput');
+
+/* ---------- Image storage approach ----------
+   We store each photo in the photos object store:
+   {
+     id, filename, blob (image Blob), createdAt, favorite, tags:[], rotation:0, brightness:1
+   }
+   Blob is stored in IndexedDB — supported in modern browsers.
+-------------------------------------------- */
+async function loadAll(){
+  photos = await idbGetAll(DB_STORE);
+  albums = await idbGetAll(DB_ALBUM);
+  // ensure arrays and defaults
+  photos = photos.map(p => ({...p, tags: p.tags || [], favorite: !!p.favorite, rotation: p.rotation || 0, brightness: p.brightness || 1}));
+  albums = albums || [];
+  renderAlbums();
+  renderGallery();
+}
+
+/* ---------- Upload flow ---------- */
+pickBtn.addEventListener('click', ()=>fileInput.click());
+fileInput.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  await importFiles(files);
+  fileInput.value = '';
+});
+['dragenter','dragover'].forEach(ev => {
+  dropZone.addEventListener(ev, (e)=>{ e.preventDefault(); dropZone.style.boxShadow = 'inset 0 0 0 2px rgba(79,70,229,0.18)'; });
+});
+['dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, (e)=>{ e.preventDefault(); dropZone.style.boxShadow = 'none'; }));
+dropZone.addEventListener('drop', async (e) => {
+  const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
+  await importFiles(files);
+});
+
+async function importFiles(fileList){
+  if(!fileList.length) return;
+  showToast('Importing ' + fileList.length + ' image(s)...');
+  for(const f of fileList){
+    try{
+      const blob = f; // file is blob-like
+      const item = {
+        id: uid('p'),
+        filename: f.name || 'photo',
+        blob,
+        createdAt: Date.now(),
+        favorite: false,
+        tags: [],
+        rotation: 0,
+        brightness: 1
+      };
+      await idbPut(DB_STORE, item);
+    }catch(err){
+      console.error(err);
+    }
+  }
+  await loadAll();
+  showToast('Upload complete');
+}
+
+/* ---------- Gallery rendering ---------- */
+function renderGallery(){
+  const q = (searchInput.value || '').trim().toLowerCase();
+  // filter by album or favorites
+  let list = photos.slice().sort((a,b)=>b.createdAt - a.createdAt);
+
+  if(activeFilter === 'favorites'){
+    list = list.filter(p => p.favorite);
+  } else if(activeFilter){
+    const albumObj = albums.find(a=>a.id===activeFilter);
+    if(albumObj) list = list.filter(p => albumObj.photoIds && albumObj.photoIds.includes(p.id));
+  }
+
+  if(q){
+    list = list.filter(p => (p.filename && p.filename.toLowerCase().includes(q)) || (p.tags && p.tags.join(' ').toLowerCase().includes(q)));
+  }
+
+  filteredPhotos = list;
+  gallery.innerHTML = '';
+  if(!list.length){
+    emptyEl.classList.remove('hidden');
+    return;
+  } else {
+    emptyEl.classList.add('hidden');
+  }
+
+  for(let i=0;i<list.length;i++){
+    const p = list[i];
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = p.id;
+    // create objectURL for blob or use createImageBitmap
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.alt = p.filename || '';
+    // create a thumbnail using createObjectURL
+    const url = URL.createObjectURL(p.blob);
+    img.src = url;
+    img.addEventListener('load', ()=> URL.revokeObjectURL(url));
+    card.appendChild(img);
+
+    const badge = document.createElement('div');
+    badge.className = 'badge';
+    badge.textContent = new Date(p.createdAt).toLocaleDateString();
+    card.appendChild(badge);
+
+    // meta overlay
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const left = document.createElement('div');
+    left.textContent = p.filename || 'photo';
+    const right = document.createElement('div');
+    right.innerHTML = (p.favorite ? '★' : '') + (p.tags && p.tags.length ? ' • ' + p.tags.join(', ') : '');
+    meta.appendChild(left);
+    meta.appendChild(right);
+    card.appendChild(meta);
+
+    card.addEventListener('click', ()=> openViewerByIndex(i));
+    gallery.appendChild(card);
+  }
+}
+
+/* ---------- Albums ---------- */
+function renderAlbums(){
+  albumsList.innerHTML = '';
+  albumsSelect.innerHTML = '<option value="">Add to album...</option>';
+
+  // default 'All' and 'Favorites'
+  const allEl = document.createElement('div');
+  allEl.className = 'album';
+  allEl.textContent = 'All Photos';
+  allEl.addEventListener('click', ()=>{ activeFilter = null; renderGallery(); });
+  albumsList.appendChild(allEl);
+
+  const favEl = document.createElement('div');
+  favEl.className = 'album';
+  const favInner = document.createElement('div');
+  favInner.textContent = 'Favorites';
+  const countFav = (photos.filter(p=>p.favorite).length) || 0;
+  favEl.appendChild(favInner);
+  const c = document.createElement('div'); c.style.color = 'var(--muted)'; c.textContent = countFav; favEl.appendChild(c);
+  favEl.addEventListener('click', ()=>{ activeFilter = 'favorites'; renderGallery(); });
+  albumsList.appendChild(favEl);
+
+  for(const a of albums){
+    const node = document.createElement('div');
+    node.className = 'album';
+    node.innerHTML = `<div>${a.name}</div><div style="display:flex;gap:8px"><div style="color:var(--muted)">${a.photoIds ? a.photoIds.length : 0}</div><button class="btn small ghost" data-id="${a.id}">Rename</button></div>`;
+    node.querySelector('button').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const newName = prompt('Rename album', a.name);
+      if(newName) { a.name = newName; idbPut(DB_ALBUM, a).then(()=>loadAll()); }
+    });
+    node.addEventListener('click', ()=>{ activeFilter = a.id; renderGallery(); });
+    albumsList.appendChild(node);
+
+    // add to select
+    const opt = document.createElement('option'); opt.value = a.id; opt.textContent = a.name; albumsSelect.appendChild(opt);
+  }
+}
+
+/* ---------- Album creation UI ---------- */
+document.getElementById('newAlbumBtn').addEventListener('click', async () => {
+  const name = prompt('Album name');
+  if(!name) return;
+  const a = { id: uid('a'), name, photoIds: [] };
+  await idbPut(DB_ALBUM, a);
+  await loadAll();
+});
+
+/* ---------- Viewer modal ---------- */
+function openViewerByIndex(i){
+  if(!filteredPhotos || !filteredPhotos.length) return;
+  currentIndex = i;
+  openViewer();
+}
+async function openViewer(){
+  const p = filteredPhotos[currentIndex];
+  if(!p) return;
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden','false');
+  // load blob into canvas
+  await drawToCanvas(p);
+  viewerFilename.textContent = p.filename || '';
+  viewerInfo.textContent = new Date(p.createdAt).toLocaleString() + (p.blob ? ` • ${Math.round(p.blob.size/1024)} KB` : '');
+  renderViewerTags(p);
+  // albums select prepopulated in renderAlbums
+}
+async function drawToCanvas(photo){
+  const canvas = viewerCanvas;
+  const ctx = canvas.getContext('2d');
+  const imgBitmap = await createImageBitmap(photo.blob);
+  // apply rotation/brightness by drawing to canvas
+  // compute canvas size to fit while preserving aspect ratio
+  const cw = Math.min(window.innerWidth * 0.8, imgBitmap.width);
+  const ch = Math.min(window.innerHeight * 0.7, imgBitmap.height);
+  // set canvas to image size for crisp draw, but scale via CSS allowed by max-width/height styles
+  canvas.width = imgBitmap.width;
+  canvas.height = imgBitmap.height;
+  ctx.save();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // rotation:
+  if(photo.rotation){
+    const angle = photo.rotation % 360;
+    // create an offscreen canvas for rotation with proper size
+    const radians = angle * Math.PI/180;
+    const sin = Math.abs(Math.sin(radians)), cos = Math.abs(Math.cos(radians));
+    const newW = Math.round(canvas.width * cos + canvas.height * sin);
+    const newH = Math.round(canvas.width * sin + canvas.height * cos);
+    const off = document.createElement('canvas');
+    off.width = newW; off.height = newH;
+    const oc = off.getContext('2d');
+    oc.translate(newW/2, newH/2);
+    oc.rotate(radians);
+    oc.drawImage(imgBitmap, -canvas.width/2, -canvas.height/2);
+    // apply brightness if needed
+    if(photo.brightness && photo.brightness !== 1){
+      const d = oc.getImageData(0,0,off.width,off.height);
+      for(let i=0;i<d.data.length;i+=4){
+        d.data[i] = Math.min(255, d.data[i]*photo.brightness);
+        d.data[i+1] = Math.min(255, d.data[i+1]*photo.brightness);
+        d.data[i+2] = Math.min(255, d.data[i+2]*photo.brightness);
+      }
+      oc.putImageData(d,0,0);
+    }
+    canvas.width = off.width; canvas.height = off.height;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(off,0,0);
+  } else {
+    ctx.drawImage(imgBitmap,0,0);
+    if(photo.brightness && photo.brightness !== 1){
+      const d = ctx.getImageData(0,0,canvas.width,canvas.height);
+      for(let i=0;i<d.data.length;i+=4){
+        d.data[i] = Math.min(255, d.data[i]*photo.brightness);
+        d.data[i+1] = Math.min(255, d.data[i+1]*photo.brightness);
+        d.data[i+2] = Math.min(255, d.data[i+2]*photo.brightness);
+      }
+      ctx.putImageData(d,0,0);
+    }
+  }
+  ctx.restore();
+  // scale canvas down for display via CSS while keeping internal resolution
+  canvas.style.maxWidth = '100%';
+  canvas.style.maxHeight = '100%';
+}
+
+/* ---------- Viewer controls ---------- */
+document.getElementById('prevBtn').addEventListener('click', ()=> {
+  if(currentIndex > 0) currentIndex--;
+  else currentIndex = Math.max(0, filteredPhotos.length - 1);
+  openViewer();
+});
+document.getElementById('nextBtn').addEventListener('click', ()=> {
+  if(currentIndex < filteredPhotos.length - 1) currentIndex++;
+  else currentIndex = 0;
+  openViewer();
+});
+document.getElementById('closeBtn').addEventListener('click', ()=> closeViewer());
+modal.addEventListener('click', (e)=>{ if(e.target === modal) closeViewer(); });
+
+function closeViewer(){
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden','true');
+}
+
+/* rotate */
+document.getElementById('rotateBtn').addEventListener('click', async () => {
+  const p = filteredPhotos[currentIndex];
+  if(!p) return;
+  p.rotation = (p.rotation + 90) % 360;
+  await idbPut(DB_STORE, p);
+  await loadAll();
+  await openViewer();
+});
+
+/* brightness prompt */
+document.getElementById('brightnessBtn').addEventListener('click', async () => {
+  const p = filteredPhotos[currentIndex];
+  if(!p) return;
+  const val = prompt('Brightness multiplier (0.2 - 2.0)', (p.brightness || 1).toString());
+  if(!val) return;
+  const n = parseFloat(val);
+  if(isNaN(n) || n <= 0) { showToast('Invalid brightness'); return; }
+  p.brightness = n;
+  await idbPut(DB_STORE, p);
+  await loadAll();
+  await openViewer();
+});
+
+/* favorite toggle */
+document.getElementById('favToggle').addEventListener('click', async () => {
+  const p = filteredPhotos[currentIndex];
+  if(!p) return;
+  p.favorite = !p.favorite;
+  await idbPut(DB_STORE, p);
+  await loadAll();
+  renderViewerTags(p);
+});
+
+/* delete */
+document.getElementById('deleteBtn').addEventListener('click', async () => {
+  const p = filteredPhotos[currentIndex];
+  if(!p) return;
+  if(!confirm('Delete this photo?')) return;
+  await idbDelete(DB_STORE, p.id);
+  // remove from albums
+  for(const a of albums){
+    if(a.photoIds) {
+      a.photoIds = a.photoIds.filter(id=>id!==p.id);
+      await idbPut(DB_ALBUM, a);
+    }
+  }
+  await loadAll();
+  if(currentIndex >= filteredPhotos.length) currentIndex = filteredPhotos.length - 1;
+  if(filteredPhotos.length) await openViewer(); else closeViewer();
+});
+
+/* tags */
+addTagInput.addEventListener('keydown', async (e) => {
+  if(e.key === 'Enter'){
+    const val = addTagInput.value.trim();
+    if(!val) return;
+    const p = filteredPhotos[currentIndex];
+    if(!p) return;
+    p.tags = p.tags || [];
+    if(!p.tags.includes(val)) p.tags.push(val);
+    await idbPut(DB_STORE, p);
+    addTagInput.value = '';
+    await loadAll();
+    renderViewerTags(p);
+  }
+});
+function renderViewerTags(p){
+  viewerTags.innerHTML = '';
+  (p.tags || []).forEach(tag => {
+    const t = document.createElement('div'); t.className = 'tag'; t.textContent = tag;
+    t.addEventListener('click', async ()=> {
+      // remove tag on click
+      if(!confirm('Remove tag "'+tag+'"?')) return;
+      p.tags = p.tags.filter(x=>x!==tag);
+      await idbPut(DB_STORE, p);
+      await loadAll();
+      renderViewerTags(p);
+    });
+    viewerTags.appendChild(t);
+  });
+  // update favorite button
+  const favBtn = document.getElementById('favToggle');
+  favBtn.textContent = p.favorite ? '★' : '♡';
+}
+
+/* add to album */
+document.getElementById('applyAlbumBtn').addEventListener('click', async () => {
+  const sel = albumsSelect.value;
+  if(!sel) return showToast('Choose an album');
+  const p = filteredPhotos[currentIndex];
+  const albumObj = albums.find(a=>a.id===sel);
+  if(!albumObj) return;
+  albumObj.photoIds = albumObj.photoIds || [];
+  if(!albumObj.photoIds.includes(p.id)) albumObj.photoIds.push(p.id);
+  await idbPut(DB_ALBUM, albumObj);
+  await loadAll();
+  showToast('Added to album');
+});
+
+/* ---------- Search ---------- */
+searchInput.addEventListener('input', ()=> renderGallery());
+document.getElementById('searchClear').addEventListener('click', ()=>{ searchInput.value=''; renderGallery(); });
+
+/* ---------- Favorites filter ---------- */
+document.getElementById('favFilter').addEventListener('click', ()=> {
+  if(activeFilter === 'favorites') activeFilter = null;
+  else activeFilter = 'favorites';
+  renderGallery();
+});
+
+/* ---------- Clear all ---------- */
+document.getElementById('clearAllBtn').addEventListener('click', async ()=> {
+  if(!confirm('This will delete ALL photos and albums from this browser. Continue?')) return;
+  await idbClear(DB_STORE);
+  await idbClear(DB_ALBUM);
+  await loadAll();
+  showToast('Cleared');
+});
+
+/* ---------- Export / Import backup ---------- */
+document.getElementById('exportBtn').addEventListener('click', async () => {
+  // Build an export object: metadata + blobs as base64 for portability
+  const allPhotos = await idbGetAll(DB_STORE);
+  const exportObj = { photos: [], albums: await idbGetAll(DB_ALBUM), createdAt: Date.now() };
+  showToast('Preparing export...');
+  for(const p of allPhotos){
+    const buf = await blobToBase64(p.blob);
+    const {id, filename, createdAt, favorite, tags, rotation, brightness} = p;
+    exportObj.photos.push({ id, filename, createdAt, favorite, tags, rotation, brightness, data: buf });
+  }
+  const blob = new Blob([JSON.stringify(exportObj)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'betnix-photos-backup.json';
+  a.click(); URL.revokeObjectURL(url); showToast('Export ready');
+});
+
+document.getElementById('importBtn').addEventListener('click', async ()=>{
+  const f = document.createElement('input'); f.type='file'; f.accept='application/json';
+  f.onchange = async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const text = await file.text();
+    try{
+      const obj = JSON.parse(text);
+      if(!obj.photos) throw new Error('Invalid backup');
+      showToast('Importing backup...');
+      for(const p of obj.photos){
+        const blob = base64ToBlob(p.data);
+        const item = {
+          id: p.id || uid('p'),
+          filename: p.filename || 'photo',
+          blob,
+          createdAt: p.createdAt || Date.now(),
+          favorite: !!p.favorite,
+          tags: p.tags || [],
+          rotation: p.rotation || 0,
+          brightness: p.brightness || 1
+        };
+        await idbPut(DB_STORE, item);
+      }
+      // import albums
+      if(obj.albums){
+        for(const a of obj.albums){
+          await idbPut(DB_ALBUM, a);
+        }
+      }
+      await loadAll();
+      showToast('Imported backup');
+    }catch(err){ console.error(err); showToast('Import failed'); }
+  };
+  f.click();
+});
+
+async function blobToBase64(blob){
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = ()=>res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(blob);
+  });
+}
+function base64ToBlob(base64){
+  const b = atob(base64);
+  let n = b.length;
+  const u8 = new Uint8Array(n);
+  while(n--) u8[n] = b.charCodeAt(n);
+  // naive guess at type (let user decide) - default to image/jpeg
+  return new Blob([u8], {type: 'image/jpeg'});
+}
+
+/* ---------- Slideshow ---------- */
+let slideInterval = null;
+document.getElementById('slideshowBtn').addEventListener('click', async ()=>{
+  // open viewer at 0 and start timer
+  if(!filteredPhotos || !filteredPhotos.length) { showToast('No photos to slideshow'); return; }
+  currentIndex = 0;
+  await openViewer();
+  if(slideInterval) clearInterval(slideInterval);
+  slideInterval = setInterval(()=> {
+    currentIndex = (currentIndex + 1) % filteredPhotos.length;
+    openViewer();
+  }, 3500);
+  // stop when modal closed
+  modal.addEventListener('transitionend', ()=>{ if(!modal.classList.contains('open') && slideInterval){ clearInterval(slideInterval); slideInterval=null; } });
+});
+
+/* ---------- Initial load ---------- */
+(async ()=>{
+  // Try to open DB, then load data
+  try{
+    await openDB();
+    await loadAll();
+  }catch(err){
+    console.error('IDB error',err);
+    alert('Error initializing storage: ' + err);
+  }
+})();
+
+/* ---------- Extra helpful features: drag reorder (not implemented), thumbnail generation, etc. ----------
+   This app focuses on a stable core: upload, store, view, basic edits, albums, import/export.
+   You can extend it: add face recognition, background sync, server upload, more editors, etc.
+--------------------------------------------------------------------- */
+</script>
+<script>
+/* continuing... */
+
+// after deleteBtn
+  await loadAll();
+  closeViewer();
+  showToast('Photo deleted');
+});
+
+/* ---------- Tags ---------- */
+function renderViewerTags(photo){
+  viewerTags.innerHTML = '';
+  for(const t of photo.tags || []){
+    const el = document.createElement('div');
+    el.className = 'tag';
+    el.textContent = t;
+    el.addEventListener('click', ()=> {
+      searchInput.value = t;
+      renderGallery();
+    });
+    viewerTags.appendChild(el);
+  }
+}
+addTagInput.addEventListener('keypress', async (e) => {
+  if(e.key === 'Enter'){
+    const p = filteredPhotos[currentIndex];
+    if(!p) return;
+    const tag = addTagInput.value.trim();
+    if(!tag) return;
+    p.tags = [...(p.tags||[]), tag];
+    await idbPut(DB_STORE, p);
+    addTagInput.value = '';
+    await loadAll();
+    renderViewerTags(p);
+  }
+});
+
+/* ---------- Albums in viewer ---------- */
+document.getElementById('applyAlbumBtn').addEventListener('click', async () => {
+  const p = filteredPhotos[currentIndex];
+  if(!p) return;
+  const aId = albumsSelect.value;
+  if(!aId) return;
+  const albumObj = albums.find(a=>a.id===aId);
+  if(!albumObj) return;
+  albumObj.photoIds = albumObj.photoIds || [];
+  if(!albumObj.photoIds.includes(p.id)){
+    albumObj.photoIds.push(p.id);
+    await idbPut(DB_ALBUM, albumObj);
+    await loadAll();
+    showToast('Added to album ' + albumObj.name);
+  }
+});
+
+/* ---------- Search & filters ---------- */
+searchInput.addEventListener('input', ()=>renderGallery());
+document.getElementById('searchClear').addEventListener('click', ()=>{
+  searchInput.value = ''; renderGallery();
+});
+document.getElementById('favFilter').addEventListener('click', ()=>{
+  activeFilter = 'favorites'; renderGallery();
+});
+
+/* ---------- Backup Import/Export ---------- */
+document.getElementById('exportBtn').addEventListener('click', async () => {
+  const data = {photos, albums};
+  // We can't export blobs inside JSON easily, so encode as base64
+  const out = await Promise.all(photos.map(async p => {
+    const buf = await p.blob.arrayBuffer();
+    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+    return {...p, blobBase64:b64, blob:null};
+  }));
+  const json = JSON.stringify({photos: out, albums}, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'betnix_photos_backup.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importBtn').addEventListener('click', ()=>{
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'application/json';
+  inp.onchange = async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const text = await file.text();
+    const obj = JSON.parse(text);
+    if(obj.photos){
+      for(const p of obj.photos){
+        const bin = Uint8Array.from(atob(p.blobBase64), c=>c.charCodeAt(0));
+        const blob = new Blob([bin], {type:'image/*'});
+        delete p.blobBase64;
+        p.blob = blob;
+        await idbPut(DB_STORE, p);
+      }
+    }
+    if(obj.albums){
+      for(const a of obj.albums){
+        await idbPut(DB_ALBUM, a);
+      }
+    }
+    await loadAll();
+    showToast('Backup imported');
+  };
+  inp.click();
+});
+
+/* ---------- Slideshow ---------- */
+let slideInterval = null;
+document.getElementById('slideshowBtn').addEventListener('click', ()=>{
+  if(slideInterval){ clearInterval(slideInterval); slideInterval=null; showToast('Slideshow stopped'); return; }
+  if(!filteredPhotos.length){ showToast('No photos for slideshow'); return; }
+  currentIndex=0; openViewer();
+  slideInterval = setInterval(()=>{
+    currentIndex = (currentIndex+1)%filteredPhotos.length;
+    openViewer();
+  }, 3000);
+  showToast('Slideshow started (3s)');
+});
+
+/* ---------- Clear all ---------- */
+document.getElementById('clearAllBtn').addEventListener('click', async ()=>{
+  if(!confirm('Clear all photos and albums?')) return;
+  await idbClear(DB_STORE);
+  await idbClear(DB_ALBUM);
+  await loadAll();
+  showToast('Cleared all data');
+});
+
+/* ---------- Init ---------- */
+loadAll();
+
+</script>
+<script>
+// Share / download current photo
+document.getElementById('shareBtn').addEventListener('click', async () => {
+  const p = filteredPhotos[currentIndex];
+  if(!p) return;
+
+  // Create object URL for download
+  const url = URL.createObjectURL(p.blob);
+
+  // Try Web Share API (mobile browsers)
+  if(navigator.share){
+    try {
+      const file = new File([p.blob], p.name, {type: p.blob.type || 'image/png'});
+      await navigator.share({
+        title: p.name,
+        text: "Shared via Betnix Photos",
+        files: [file]
+      });
+      showToast("Photo shared");
+      return;
+    } catch(err){
+      console.warn("Share cancelled or failed", err);
+    }
+  }
+
+  // Fallback: provide download link
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = p.name;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("Photo ready to download");
+});
+</script>
+
+</body>
+</html>
