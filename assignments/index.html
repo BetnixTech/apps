@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mini Classroom Full</title>
+<title>My Classroom</title>
 <style>
 body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin:0; padding:0; background:#f1f3f4; color:#202124; }
 header { background:#1a73e8; color:white; padding:15px 20px; font-size:1.5em; font-weight:500; }
@@ -20,9 +20,8 @@ input, select, textarea { padding:12px; margin:5px 0 15px 0; width:100%; box-siz
 </head>
 <body>
 
-<header>Mini Classroom</header>
+<header></header>
 
-<!-- Setup Screen -->
 <div class="container" id="setupScreen">
   <h2>Welcome</h2>
   <p>Select your role:</p>
@@ -34,18 +33,15 @@ input, select, textarea { padding:12px; margin:5px 0 15px 0; width:100%; box-siz
   </div>
 </div>
 
-<!-- Teacher Dashboard -->
 <div class="container hidden" id="teacherDashboard">
   <h2>Teacher Dashboard</h2>
   <div class="dashboard" id="teacherSummary"></div>
   <button onclick="goToTeacherPage()">Manage Classrooms</button>
 </div>
 
-<!-- Teacher Page -->
 <div class="container hidden" id="teacherPage">
   <h2>Classroom Management</h2>
   <select id="teacherClassSelect" onchange="switchTeacherClass()"></select>
-
   <h3>Create Classroom</h3>
   <input type="text" id="className" placeholder="Classroom Name">
   <button onclick="createClassroom()">Create Classroom</button>
@@ -70,14 +66,12 @@ input, select, textarea { padding:12px; margin:5px 0 15px 0; width:100%; box-siz
   <button onclick="backToDashboard('teacher')">Back to Dashboard</button>
 </div>
 
-<!-- Student Dashboard -->
 <div class="container hidden" id="studentDashboard">
   <h2>Student Dashboard</h2>
   <div class="dashboard" id="studentSummary"></div>
   <button onclick="goToStudentPage()">Go to Classrooms</button>
 </div>
 
-<!-- Student Page -->
 <div class="container hidden" id="studentPage">
   <h2>Classrooms</h2>
   <input type="text" id="joinCodeInput" placeholder="Enter Classroom Code">
@@ -97,9 +91,24 @@ input, select, textarea { padding:12px; margin:5px 0 15px 0; width:100%; box-siz
 </div>
 
 <script>
-// Data
 let classrooms = JSON.parse(localStorage.getItem('classrooms')) || [];
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+
+  
+// Safe JSON parsing
+function safeParse(key, defaultValue){
+  try{
+    const data = localStorage.getItem(key);
+    if(!data) return defaultValue;
+    return JSON.parse(data);
+  } catch(e){
+    console.warn(`Invalid JSON in localStorage for ${key}, resetting.`);
+    return defaultValue;
+  }
+}
+
+let classrooms = safeParse('classrooms', []);
+let currentUser = safeParse('currentUser', null);
 let currentClass = null;
 
 function saveData(){ localStorage.setItem('classrooms', JSON.stringify(classrooms)); }
@@ -107,7 +116,7 @@ function saveData(){ localStorage.setItem('classrooms', JSON.stringify(classroom
 // Setup
 function hideSetup(){ document.getElementById('setupScreen').classList.add('hidden'); }
 function showTeacherDashboard(){ document.getElementById('teacherDashboard').classList.remove('hidden'); updateTeacherDashboard(); updateTeacherClassSelect(); }
-function showStudentDashboard(){ document.getElementById('studentDashboard').classList.remove('hidden'); updateStudentDashboard(); updateStudentClassSelect(); }
+function showStudentDashboard(){ document.getElementById('studentDashboard').classList.remove('hidden'); updateStudentDashboard(); renderStudentClassSelect(); }
 
 document.getElementById('teacherBtn').onclick = ()=>{
   currentUser = {role:'teacher'};
@@ -274,7 +283,77 @@ if(currentUser){
   if(currentUser.role==='teacher') showTeacherDashboard();
   else showStudentDashboard();
 }
-</script>
 
+// Safe JSON parsing for localStorage
+function safeParse(key, defaultValue){
+  try{
+    const data = localStorage.getItem(key);
+    if(!data) return defaultValue;
+    return JSON.parse(data);
+  } catch(e){
+    console.warn(`Invalid JSON in localStorage for ${key}, resetting.`);
+    return defaultValue;
+  }
+}
+
+// Usage:
+let classrooms = safeParse('classrooms', []);
+let currentUser = safeParse('currentUser', null);
+
+  // Display assignments with submissions and grading inputs
+function displayTeacherAssignmentsWithGrading(){
+  const container = document.getElementById('teacherAssignments');
+  container.innerHTML = '';
+  if(!currentClass) return;
+
+  currentClass.assignments.forEach((a, aIndex) => {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `<b>${a.title}</b><br>${a.description}<br>Due: ${a.dueDate}<br>`;
+
+    if(a.submissions.length === 0){
+      div.innerHTML += 'No submissions yet.';
+    } else {
+      a.submissions.forEach((s, sIndex) => {
+        div.innerHTML += `
+          <p>${s.name} 
+            ${s.grade ? `<span class="graded">Grade: ${s.grade}</span>` : ''}
+            <button onclick="gradeSubmission(${aIndex}, ${sIndex})">Grade</button>
+          </p>
+        `;
+      });
+    }
+    container.appendChild(div);
+  });
+}
+
+// Prompt teacher to grade a submission
+function gradeSubmission(assignmentIndex, submissionIndex){
+  const grade = prompt("Enter grade for this submission (e.g., 90/100):");
+  if(grade !== null){
+    currentClass.assignments[assignmentIndex].submissions[submissionIndex].grade = grade;
+    saveData();
+    displayTeacherAssignmentsWithGrading();
+  }
+}
+
+// Show student's grades in assignments
+function renderStudentAssignmentsWithGrades(){
+  const container = document.getElementById('studentAssignments');
+  container.innerHTML = '';
+  if(!currentClass) return;
+
+  currentClass.assignments.forEach((a, i) => {
+    const submitted = a.submissions.find(s => s.name === currentUser.name);
+    const gradeText = submitted && submitted.grade ? `<br><span class="graded">Grade: ${submitted.grade}</span>` : '';
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `<b>${a.title}</b><br>${a.description}<br>Due: ${a.dueDate}<br>Status: ${submitted ? 'Submitted' : 'Not Submitted'}${gradeText}
+      <input type="file" id="file_${i}"><button onclick="submitAssignment(${i})">Submit</button>`;
+    container.appendChild(div);
+  });
+}
+
+</script>
 </body>
 </html>
