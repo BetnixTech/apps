@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Betnix Contacts</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f3f6fb;color:#111}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.05)}
+.brand{font-weight:700;font-size:18px;color:#2563eb}
+.container{padding:20px;max-width:900px;margin:auto}
+input, button, select{padding:6px 10px;border-radius:6px;border:1px solid #ccc;margin:4px 0}
+button{background:#2563eb;color:white;border:none;cursor:pointer}
+.contact{padding:10px;border-radius:6px;background:white;margin:6px 0;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.contact div span{display:block}
+.contact img{width:40px;height:40px;border-radius:50%;margin-right:10px}
+.contact button{margin-left:6px;padding:4px 8px;background:#f44336;border:none;color:white;border-radius:4px;cursor:pointer}
+.search-bar{margin-bottom:10px;padding:6px;border-radius:6px;border:1px solid #ccc;width:100%}
+</style>
+</head>
+<body>
+<header><div class="brand">Betnix Contacts</div></header>
+<div class="container">
+
+<!-- Login/Register -->
+<div id="auth">
+<h2>Login / Register</h2>
+<input id="email" placeholder="Email"><br>
+<input id="password" type="password" placeholder="Password"><br>
+<button id="login-btn">Login</button>
+<button id="register-btn">Register</button>
+</div>
+
+<!-- Contacts UI -->
+<div id="contacts-app" style="display:none">
+<h2>Search Contacts</h2>
+<input class="search-bar" id="search" placeholder="Search contacts">
+
+<h2>Add Contact</h2>
+<form id="add-contact-form">
+<input name="name" placeholder="Name">
+<input name="email" placeholder="Email">
+<input name="phone" placeholder="Phone">
+<input name="group" placeholder="Group">
+<label>Favorite <input type="checkbox" name="favorite"></label>
+<input type="file" name="avatar">
+<button type="submit">Add Contact</button>
+</form>
+
+<h2>Import CSV</h2>
+<form id="import-form" enctype="multipart/form-data">
+<input type="file" name="csv">
+<button type="submit">Import</button>
+</form>
+
+<button id="export-btn">Export CSV</button>
+
+<h2>Contacts</h2>
+<div id="contacts"></div>
+</div>
+
+<script>
+let token = "";
+
+async function api(url, options={}) {
+  options.headers = options.headers || {};
+  if(token) options.headers["Authorization"] = token;
+  const res = await fetch(url, options);
+  if(res.status === 401) alert("Unauthorized, login required");
+  return res.json();
+}
+
+// Auth
+document.getElementById("login-btn").onclick = async ()=>{
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const data = await api("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+  if(data.token){ token = data.token; showContactsApp(); }
+  else alert(data.error);
+};
+document.getElementById("register-btn").onclick = async ()=>{
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const data = await api("/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+  if(data.token){ token = data.token; showContactsApp(); }
+  else alert(data.error);
+};
+
+function showContactsApp(){
+  document.getElementById("auth").style.display="none";
+  document.getElementById("contacts-app").style.display="block";
+  loadContacts();
+}
+
+async function loadContacts(){
+  const search = document.getElementById("search").value;
+  const data = await api("/api/contacts?search="+encodeURIComponent(search));
+  const div = document.getElementById("contacts");
+  div.innerHTML = "";
+  data.forEach(c=>{
+    const el = document.createElement("div");
+    el.className="contact";
+    el.innerHTML = `<div>
+      ${c.avatar?`<img src="/${c.avatar}">`:''}
+      <span><b>${c.name}</b></span>
+      <span>${c.email}</span>
+      <span>${c.phone||''}</span>
+      <span>${c.group||''}</span>
+      <span>Favorite: ${c.favorite}</span>
+    </div>
+    <div>
+      <button onclick='editContact("${c._id}")'>Edit</button>
+      <button onclick='deleteContact("${c._id}")'>Delete</button>
+    </div>`;
+    div.appendChild(el);
+  });
+}
+
+document.getElementById("search").oninput = loadContacts;
+
+// Add contact
+document.getElementById("add-contact-form").onsubmit = async e=>{
+  e.preventDefault();
+  const form = e.target;
+  const data = new FormData(form);
+  const res = await fetch("/api/contacts",{method:"POST",body:data,headers:{"Authorization":token}});
+  form.reset();
+  loadContacts();
+};
+
+// Delete
+async function deleteContact(id){
+  await api("/api/contacts/"+id,{method:"DELETE"});
+  loadContacts();
+}
+
+// Edit
+async function editContact(id){
+  const name = prompt("New name:");
+  const email = prompt("New email:");
+  const phone = prompt("New phone:");
+  const group = prompt("New group:");
+  const favorite = confirm("Favorite?");
+  await api("/api/contacts/"+id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,email,phone,group,favorite})});
+  loadContacts();
+}
+
+// Import CSV
+document.getElementById("import-form").onsubmit = async e=>{
+  e.preventDefault();
+  const form = e.target;
+  const data = new FormData(form);
+  await fetch("/api/import-csv",{method:"POST",body:data,headers:{"Authorization":token}});
+  form.reset();
+  loadContacts();
+};
+
+// Export CSV
+document.getElementById("export-btn").onclick = ()=>{
+  window.location="/api/export-csv";
+};
+</script>
+</body>
+</html>
