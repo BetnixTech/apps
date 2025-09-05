@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Betnix Meet Public</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f3f6fb;color:#111}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.05)}
+.brand{font-weight:700;font-size:18px;color:#2563eb}
+.controls input,.controls button{padding:6px 10px;border-radius:6px;border:1px solid #ccc;margin-left:6px}
+.controls button{background:#2563eb;color:#fff;border:none;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px;padding:12px}
+video{width:100%;height:200px;object-fit:cover;border-radius:8px;background:#000}
+.label{position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.6);color:#fff;font-size:12px;padding:2px 6px;border-radius:4px}
+.tile{position:relative}
+.chat{position:fixed;right:0;top:0;width:260px;height:100%;background:#fff;box-shadow:-2px 0 8px rgba(0,0,0,.1);display:flex;flex-direction:column}
+.chat-messages{flex:1;overflow-y:auto;padding:8px}
+.chat-messages div{margin-bottom:6px;font-size:14px}
+.chat input{border:1px solid #ccc;padding:6px;border-radius:6px;margin:8px}
+</style>
+</head>
+<body>
+<header>
+<div class="brand">Betnix Meet</div>
+<div class="controls">
+<input id="room" placeholder="Room ID (leave blank for random)">
+<input id="name" placeholder="Your Name">
+<button id="join">Join</button>
+</div>
+</header>
+
+<div class="grid" id="videos"></div>
+
+<div class="chat">
+<div class="chat-messages" id="chat-box"></div>
+<input id="chat-input" placeholder="Type a message...">
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const peers = {};
+const localVideo = document.createElement("video");
+localVideo.muted = true;
+let localStream;
+const videos = document.getElementById("videos");
+
+async function initLocal(){
+  localStream = await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+  localVideo.srcObject = localStream;
+  localVideo.autoplay = true;
+  localVideo.playsinline = true;
+  const tile = document.createElement("div");
+  tile.className="tile";
+  tile.appendChild(localVideo);
+  const label = document.createElement("div");
+  label.className="label"; label.textContent="Me";
+  tile.appendChild(label);
+  videos.appendChild(tile);
+}
+initLocal();
+
+document.getElementById("join").onclick = () => {
+  let roomId = document.getElementById("room").value.trim();
+  if(!roomId) roomId = crypto.randomUUID();
+  const name = document.getElementById("name").value || "Guest";
+  socket.emit("join-room", { roomId, displayName: name });
+  document.getElementById("room").disabled = true;
+  document.getElementById("name").disabled = true;
+  alert("Share this room ID: " + roomId);
+};
+
+socket.on("existing-peers", ({peers: ids}) => {
+  for(const id of ids){
+    createPeerConnection(id, true);
+  }
+});
+
+socket.on("peer-joined", ({peerId, displayName}) => {
+  createPeerConnection(peerId, false, displayName);
+});
+
+socket.on("offer", async ({from, offer, displayName}) => {
+  const pc = createPeerConnection(from, false, displayName);
+  await pc.setRemoteDescription(new RTCSessionDescription(offer));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  socket.emit("answer", { to: from, answer });
+});
+
+socket.on("answer", async ({from, answer}) => {
+  await peers[from].setRemoteDescription(new RTCSessionDescription(answer));
+});
+
+socket.on("ice-candidate", ({from, candidate}) => {
+  if(peers[from]) peers[from].addIceCandidate(new RTCIceCandidate(candidate));
+});
+
+socket.on("peer-left", ({peerId}) => {
+  if(peers[peerId]) peers[peerId].close();
+  delete peers[peerId];
+  const el = document.getElementById("vid-"+peerId);
+  if(el) el.remove();
+});
+
+function createPeerConnection(id, initiator, displayName="Peer"){
+  const pc = new RTCPeerConnection();
+  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  pc.ontrack = (event) => {
+    let vid = document.getElementById("vid-"+id);
+    if(!vid){
+      const tile = document.createElement("div");
+      tile.className="tile";
+      const video = document.createElement("video");
+      video.id = "vid-"+id;
+      video.srcObject = event.streams[0];
+      video.autoplay = true;
+      video.playsinline = true;
+      tile.appendChild(video);
+      const label = document.createElement("div");
+      label.className="label"; label.textContent = displayName;
+      tile.appendChild(label);
+      videos.appendChild(tile);
+    }
+  };
+  pc.onicecandidate = (event) => {
+    if(event.candidate){
+      socket.emit("ice-candidate", { to: id, candidate: event.candidate });
+    }
+  };
+  peers[id] = pc;
+  if(initiator){
+    pc.createOffer().then(o => {
+      pc.setLocalDescription(o);
+      socket.emit("offer", { to: id, offer: o });
+    });
+  }
+  return pc;
+}
+
+// Chat
+const chatInput = document.getElementById("chat-input");
+chatInput.addEventListener("keypress", e => {
+  if(e.key==="Enter"){
+    socket.emit("chat-message", chatInput.value);
+    chatInput.value="";
+  }
+});
+socket.on("chat-message", ({name,text})=>{
+  const div=document.createElement("div");
+  div.textContent = name+": "+text;
+  document.getElementById("chat-box").appendChild(div);
+});
+</script>
+</body>
+</html>
