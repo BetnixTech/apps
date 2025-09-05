@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crypto Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body {
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    background-color: #f5f5f7;
+    color: #111;
+  }
+  header {
+    background-color: #fff;
+    padding: 20px 40px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    font-size: 24px;
+    font-weight: 600;
+    text-align: center;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 20px;
+  }
+  .search-bar {
+    width: 100%;
+    padding: 12px 20px;
+    margin-bottom: 30px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    font-size: 16px;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transition: transform 0.2s;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+  }
+  .coin-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+  .coin-header img {
+    width: 32px;
+    margin-right: 10px;
+  }
+  .coin-name {
+    font-weight: 600;
+    font-size: 18px;
+  }
+  .coin-symbol {
+    color: #888;
+    font-size: 14px;
+    margin-left: 6px;
+  }
+  .coin-price {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .price-up { color: #16c784; }
+  .price-down { color: #ea3943; }
+  canvas {
+    width: 100% !important;
+    height: 100px !important;
+  }
+</style>
+</head>
+<body>
+
+<header>Crypto Dashboard</header>
+<div class="container">
+  <input type="text" class="search-bar" placeholder="Search coins..." id="searchInput">
+  <div class="cards" id="coinsContainer">
+    <!-- Coin cards will be loaded here -->
+  </div>
+</div>
+
+<script>
+const coinsContainer = document.getElementById('coinsContainer');
+const searchInput = document.getElementById('searchInput');
+let coinsData = [];
+
+async function fetchCryptoData() {
+  try {
+    const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1&sparkline=true');
+    coinsData = await res.json();
+    renderCoins(coinsData);
+  } catch(err) {
+    console.error('Error fetching crypto data:', err);
+  }
+}
+
+function renderCoins(data) {
+  coinsContainer.innerHTML = '';
+  data.forEach(coin => {
+    const changeClass = coin.price_change_percentage_24h >= 0 ? 'price-up' : 'price-down';
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="coin-header">
+        <img src="${coin.image}" alt="${coin.name}">
+        <div class="coin-name">${coin.name}<span class="coin-symbol">(${coin.symbol.toUpperCase()})</span></div>
+      </div>
+      <div class="coin-price $${changeClass}">$${coin.current_price.toLocaleString()} <span class="${changeClass}">(${coin.price_change_percentage_24h.toFixed(2)}%)</span></div>
+      <canvas id="chart-${coin.id}"></canvas>
+    `;
+    coinsContainer.appendChild(card);
+
+    // Chart
+    const ctx = document.getElementById(`chart-${coin.id}`).getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: coin.sparkline_in_7d.price.map((_, i) => i),
+        datasets: [{
+          data: coin.sparkline_in_7d.price,
+          borderColor: coin.price_change_percentage_24h >= 0 ? '#16c784' : '#ea3943',
+          backgroundColor: 'rgba(0,0,0,0)',
+          borderWidth: 2,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { x: { display: false }, y: { display: false } }
+      }
+    });
+  });
+}
+
+// Search filter
+searchInput.addEventListener('input', () => {
+  const query = searchInput.value.toLowerCase();
+  const filtered = coinsData.filter(c => c.name.toLowerCase().includes(query) || c.symbol.toLowerCase().includes(query));
+  renderCoins(filtered);
+});
+
+fetchCryptoData();
+setInterval(fetchCryptoData, 30000); // Refresh every 30s
+</script>
+
+</body>
+</html>
