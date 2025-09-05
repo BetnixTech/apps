@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Betnix Voice</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f3f6fb;color:#111}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.05)}
+.brand{font-weight:700;font-size:18px;color:#2563eb}
+.container{display:flex;height:calc(100vh - 60px)}
+.sidebar{width:250px;background:#fff;box-shadow:2px 0 5px rgba(0,0,0,.05);display:flex;flex-direction:column;padding:10px}
+.sidebar input, .sidebar button{padding:6px 8px;margin:4px 0;border-radius:6px;border:1px solid #ccc}
+.sidebar button{background:#2563eb;color:white;border:none;cursor:pointer}
+.main{flex:1;display:flex;flex-direction:column;padding:12px}
+.chat-box{flex:1;overflow-y:auto;border:1px solid #ccc;padding:8px;border-radius:8px;background:white}
+.chat-box div.msg{margin-bottom:8px;padding:6px 8px;border-radius:6px;background:#e1e1e1;max-width:80%}
+.chat-box div.msg.me{background:#2563eb;color:white;margin-left:auto;text-align:right}
+.call-box{margin-top:12px}
+.call-box button{padding:6px 10px;border-radius:6px;border:none;background:#2563eb;color:white;cursor:pointer;margin-right:6px}
+.login{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh}
+.login input{margin:6px;padding:8px;border-radius:6px;border:1px solid #ccc;width:200px}
+.login button{margin:6px;padding:8px 12px;border-radius:6px;border:none;background:#2563eb;color:white;cursor:pointer}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="login" id="login-screen">
+  <h2>Login with Phone Number</h2>
+  <input id="phone" placeholder="Enter phone number">
+  <button id="login-btn">Login</button>
+</div>
+
+<!-- Main App -->
+<div class="container" id="app-screen" style="display:none">
+<div class="sidebar">
+  <h3>Send SMS</h3>
+  <input id="sms-to" placeholder="Recipient phone">
+  <input id="sms-message" placeholder="Message">
+  <button id="send-sms-btn">Send SMS</button>
+
+  <h3>Call</h3>
+  <input id="call-to" placeholder="Recipient phone">
+  <div class="call-box">
+    <button id="call-btn">Call</button>
+    <button id="hangup-btn">Hang Up</button>
+  </div>
+</div>
+<div class="main">
+  <h3>Messages</h3>
+  <div class="chat-box" id="chat-box"></div>
+</div>
+</div>
+
+<script src="https://media.twiliocdn.com/sdk/js/video/releases/2.16.0/twilio.min.js"></script>
+<script>
+let myPhone = null;
+
+document.getElementById("login-btn").onclick = async () => {
+  const phone = document.getElementById("phone").value.trim();
+  if(!phone) return;
+  const res = await fetch("/login", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({phone}) });
+  const data = await res.json();
+  if(data.userId){
+    myPhone = data.phone;
+    document.getElementById("login-screen").style.display="none";
+    document.getElementById("app-screen").style.display="flex";
+  }
+};
+
+// Send SMS
+document.getElementById("send-sms-btn").onclick = async () => {
+  const to = document.getElementById("sms-to").value.trim();
+  const message = document.getElementById("sms-message").value.trim();
+  if(!to || !message) return;
+  await fetch("/send-sms", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({to,message,from:myPhone})});
+  const chatBox = document.getElementById("chat-box");
+  const div = document.createElement("div"); div.textContent = `Me -> ${to}: ${message}`; div.className="msg me"; chatBox.appendChild(div);
+};
+
+// Twilio Voice Call (browser)
+let device = null;
+document.getElementById("call-btn").onclick = async () => {
+  const to = document.getElementById("call-to").value.trim();
+  if(!to) return;
+  const tokenRes = await fetch("/token");
+  const tokenData = await tokenRes.json();
+  device = new Twilio.Device(tokenData.token, { debug:true });
+  device.on("ready", () => device.connect({ To: to }));
+  device.on("disconnect", () => console.log("Call ended"));
+};
+
+document.getElementById("hangup-btn").onclick = () => {
+  if(device) device.disconnectAll();
+};
+</script>
+</body>
+</html>
