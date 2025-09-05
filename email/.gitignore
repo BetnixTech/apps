@@ -1,0 +1,17 @@
+# Node.js dependencies
+backend/node_modules/
+
+# Environment variables
+backend/.env
+
+# Logs
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+
+# Build folders (if you ever add a build step)
+backend/dist/
+backend/build/
+
+# Mac OS files
+*.DS_Store
