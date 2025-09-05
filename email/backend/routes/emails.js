@@ -1,0 +1,11 @@
+const express=require("express");const router=express.Router();
+const nodemailer=require("nodemailer");const Email=require("../models/Email");const jwt=require("jsonwebtoken");
+const authenticate=(req,res,next)=>{const token=req.headers.authorization;if(!token)return res.status(401).send("Unauthorized");
+try{const decoded=jwt.verify(token,process.env.JWT_SECRET);req.userId=decoded.id;next();}catch{res.status(401).send("Invalid token");}};
+router.post("/send",authenticate,async(req,res)=>{const {to,subject,body}=req.body;const userEmail=req.body.from||"no-reply@bmail.com";
+let transporter=nodemailer.createTransport({host:process.env.SMTP_HOST,port:process.env.SMTP_PORT,secure:false,auth:{user:process.env.SMTP_USER,pass:process.env.SMTP_PASS}});
+try{await transporter.sendMail({from:userEmail,to,subject,text:body});const email=new Email({from:userEmail,to,subject,body});await email.save();
+res.json({success:true,email});}catch(err){res.status(500).json({error:err.message});}});
+router.get("/inbox",authenticate,async(req,res)=>{const emails=await Email.find({to:req.query.email}).sort({date:-1});res.json(emails);});
+router.get("/sent",authenticate,async(req,res)=>{const emails=await Email.find({from:req.query.email}).sort({date:-1});res.json(emails);});
+module.exports=router;
