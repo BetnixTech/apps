@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Betnix Chat</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f3f6fb;color:#111}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.05)}
+.brand{font-weight:700;font-size:18px;color:#2563eb}
+.controls input, .controls button{padding:6px 10px;border-radius:6px;border:1px solid #ccc;margin-left:6px}
+.controls button{background:#2563eb;color:#fff;border:none;cursor:pointer}
+.container{display:flex;height:calc(100vh - 60px)}
+.sidebar{width:250px;background:#fff;box-shadow:2px 0 5px rgba(0,0,0,.05);display:flex;flex-direction:column;padding:10px}
+.sidebar div.room{padding:8px;margin-bottom:4px;border-radius:6px;cursor:pointer;border:1px solid transparent}
+.sidebar div.room:hover{background:#f0f0f0;border-color:#ddd}
+.main{flex:1;display:flex;flex-direction:column}
+.chat-box{flex:1;overflow-y:auto;padding:12px}
+.chat-box div.msg{margin-bottom:8px;padding:6px 8px;border-radius:6px;background:#e1e1e1;max-width:80%}
+.chat-box div.msg.me{background:#2563eb;color:white;margin-left:auto;text-align:right}
+.chat-input{display:flex;padding:8px;border-top:1px solid #ccc}
+.chat-input input{flex:1;padding:6px 10px;border-radius:6px;border:1px solid #ccc}
+.chat-input button{margin-left:6px;padding:6px 10px;border-radius:6px;border:none;background:#2563eb;color:white;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+<div class="brand">Betnix Chat</div>
+<div class="controls">
+<input id="name" placeholder="Your Name">
+<input id="room" placeholder="Room Name">
+<button id="join">Join</button>
+</div>
+</header>
+
+<div class="container">
+<div class="sidebar" id="room-list">
+  <div class="room" data-room="general"># general</div>
+  <div class="room" data-room="random"># random</div>
+</div>
+<div class="main">
+  <div class="chat-box" id="chat-box"></div>
+  <div class="chat-input">
+    <input id="chat-input" placeholder="Type a message...">
+    <button id="send">Send</button>
+  </div>
+</div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let currentRoom = null;
+let myName = null;
+
+function joinRoom(roomName) {
+  if (!myName) myName = document.getElementById("name").value || "Guest";
+  currentRoom = roomName;
+  document.getElementById("chat-box").innerHTML = "";
+  socket.emit("join-room", { roomName, displayName: myName });
+}
+
+document.getElementById("join").onclick = () => {
+  const room = document.getElementById("room").value || "general";
+  joinRoom(room);
+};
+
+document.querySelectorAll(".sidebar .room").forEach(el=>{
+  el.onclick = ()=>joinRoom(el.dataset.room);
+});
+
+socket.on("current-users", users => {
+  users.forEach(u=>{
+    const div = document.createElement("div");
+    div.textContent = u.displayName + " joined";
+    div.style.fontSize = "12px";
+    div.style.color = "#666";
+    document.getElementById("chat-box").appendChild(div);
+  });
+});
+
+socket.on("user-joined", ({displayName})=>{
+  const div = document.createElement("div");
+  div.textContent = displayName + " joined";
+  div.style.fontSize = "12px";
+  div.style.color = "#666";
+  document.getElementById("chat-box").appendChild(div);
+});
+
+socket.on("user-left", ({userId})=>{
+  const div = document.createElement("div");
+  div.textContent = "A user left";
+  div.style.fontSize = "12px";
+  div.style.color = "#666";
+  document.getElementById("chat-box").appendChild(div);
+});
+
+document.getElementById("send").onclick = () => {
+  const input = document.getElementById("chat-input");
+  if (input.value.trim()==="") return;
+  socket.emit("chat-message", input.value);
+  const div = document.createElement("div");
+  div.textContent = input.value;
+  div.className="msg me";
+  document.getElementById("chat-box").appendChild(div);
+  input.value="";
+};
+
+document.getElementById("chat-input").addEventListener("keypress", e=>{
+  if(e.key==="Enter") document.getElementById("send").click();
+});
+
+socket.on("chat-message", ({from,text})=>{
+  const div = document.createElement("div");
+  div.textContent = from+": "+text;
+  div.className="msg";
+  document.getElementById("chat-box").appendChild(div);
+});
+</script>
+</body>
+</html>
