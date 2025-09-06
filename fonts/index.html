@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Betnix Fonts</title>
+<style>
+body { font-family: Arial, sans-serif; padding: 20px; }
+input { width: 300px; padding: 5px; }
+button { padding: 5px 10px; }
+.sample { font-size: 24px; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<h1>Betnix Fonts</h1>
+<input type="text" id="fontInput" placeholder="Enter font name, e.g. Roboto">
+<button id="loadFont">Load Font</button>
+
+<p class="sample" id="sampleText">The quick brown fox jumps over the lazy dog</p>
+
+<script>
+document.getElementById('loadFont').addEventListener('click', () => {
+  const fontName = document.getElementById('fontInput').value.trim();
+  if (!fontName) return;
+
+  // Create or update <link> element for dynamic font
+  let link = document.getElementById('dynamicFont');
+  if (!link) {
+    link = document.createElement('link');
+    link.id = 'dynamicFont';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  }
+
+  // Set href to your own Betnix URL
+  link.href = `/fonts/css/${fontName}.css`;
+
+  // Apply font to sample text
+  document.getElementById('sampleText').style.fontFamily = `'${fontName}', sans-serif`;
+});
+</script>
+
+</body>
+</html>
