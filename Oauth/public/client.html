@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Betnix Public Client</title>
+<style>
+body { font-family: Arial; display: flex; flex-direction: column; align-items: center; padding: 50px; }
+button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #ff4500; color: white; border: none; border-radius: 5px; }
+button:hover { background: #e03e00; }
+</style>
+</head>
+<body>
+
+<h2>Public Client App</h2>
+<button id="loginBtn">Login with Betnix</button>
+<p id="status"></p>
+
+<script>
+const CLIENT_ID = "public_client_1";
+const REDIRECT_URI = "http://localhost:3000/public/callback";
+
+document.getElementById('loginBtn').addEventListener('click', () => {
+  const width = 500, height = 600;
+  const left = (screen.width - width) / 2;
+  const top = (screen.height - height) / 2;
+
+  window.open(
+    `/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code`,
+    'BetnixLogin',
+    `width=${width},height=${height},left=${left},top=${top}`
+  );
+});
+
+window.addEventListener('message', (event) => {
+  if (event.data.access_token) {
+    document.getElementById('status').innerText = `Logged in as ${event.data.username}`;
+    console.log("Access Token:", event.data.access_token);
+  }
+});
+</script>
+
+</body>
+</html>
