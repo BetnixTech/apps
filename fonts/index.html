@@ -1,45 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Betnix Fonts</title>
-<style>
-body { font-family: Arial, sans-serif; padding: 20px; }
-input { width: 300px; padding: 5px; }
-button { padding: 5px 10px; }
-.sample { font-size: 24px; margin-top: 20px; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Betnix Fonts API</title>
+
+  <!-- Animate.css for animations -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+  />
+
+  <!-- GSAP for advanced animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.1/gsap.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #f0f4f8;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+      color: #4a90e2;
+      text-align: center;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      margin-right: 10px;
+      width: 300px;
+      transition: border-color 0.3s ease;
+    }
+
+    input[type="text"]:focus {
+      border-color: #4a90e2;
+      outline: none;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 1rem;
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #357ab7;
+    }
+
+    .sample {
+      font-size: 1.5rem;
+      margin-top: 20px;
+      color: #555;
+      transition: font-family 0.3s ease;
+    }
+  </style>
 </head>
 <body>
 
-<h1>Betnix Fonts</h1>
-<input type="text" id="fontInput" placeholder="Enter font name, e.g. Roboto">
-<button id="loadFont">Load Font</button>
+  <h1 class="animate__animated animate__fadeIn">Betnix Fonts API</h1>
 
-<p class="sample" id="sampleText">The quick brown fox jumps over the lazy dog</p>
+  <div>
+    <input type="text" id="fontInput" placeholder="Enter font name, e.g., Roboto">
+    <button id="loadFont" class="animate__animated animate__fadeIn">Load Font</button>
+  </div>
 
-<script>
-document.getElementById('loadFont').addEventListener('click', () => {
-  const fontName = document.getElementById('fontInput').value.trim();
-  if (!fontName) return;
+  <p class="sample animate__animated" id="sampleText">The quick brown fox jumps over the lazy dog</p>
 
-  // Create or update <link> element for dynamic font
-  let link = document.getElementById('dynamicFont');
-  if (!link) {
-    link = document.createElement('link');
-    link.id = 'dynamicFont';
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
-  }
+  <script>
+    document.getElementById('loadFont').addEventListener('click', () => {
+      const fontName = document.getElementById('fontInput').value.trim();
+      if (!fontName) return;
 
-  // Set href to your own Betnix URL
-  link.href = `/fonts/css/${fontName}.css`;
+      // Create or update <link> element for dynamic font
+      let link = document.getElementById('dynamicFont');
+      if (!link) {
+        link = document.createElement('link');
+        link.id = 'dynamicFont';
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+      }
 
-  // Apply font to sample text
-  document.getElementById('sampleText').style.fontFamily = `'${fontName}', sans-serif`;
-});
-</script>
+      // Set href to your own Betnix URL
+      link.href = `/fonts/css/${fontName}.css`;
+
+      // Apply font to sample text with animation
+      const sampleText = document.getElementById('sampleText');
+      sampleText.style.fontFamily = `'${fontName}', sans-serif`;
+
+      // Animate the sample text
+      gsap.fromTo(sampleText, { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.5 });
+    });
+  </script>
 
 </body>
 </html>
