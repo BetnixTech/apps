@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Betnix Tasks</title>
+<style>
+  /* Reset & Base */
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif; }
+body { background: #f2f2f7; color: #1c1c1e; display: flex; height: 100vh; }
+
+/* Sidebar / Lists */
+#lists {
+  width: 280px;
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid #d1d1d6;
+  display: flex;
+  flex-direction: column;
+}
+#lists h2 {
+  padding: 20px;
+  font-size: 1.2em;
+  border-bottom: 1px solid #d1d1d6;
+  color: #1c1c1e;
+}
+#lists ul { list-style: none; flex: 1; overflow-y: auto; }
+#lists li {
+  padding: 12px 20px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 12px;
+  transition: background 0.2s;
+}
+#lists li.active { background: #e5e5ea; font-weight: 600; }
+#lists li:hover { background: #d1d1d6; }
+#add-list {
+  padding: 15px 20px;
+  border-top: 1px solid #d1d1d6;
+  cursor: pointer;
+  color: #0a84ff;
+  font-weight: 500;
+  border-radius: 12px 12px 0 0;
+  text-align: center;
+}
+
+/* Main Area / Tasks */
+#tasks-container { flex: 1; display: flex; flex-direction: column; }
+#tasks-header {
+  padding: 15px;
+  font-size: 1.3em;
+  border-bottom: 1px solid #d1d1d6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap:5px;
+}
+#add-task { cursor: pointer; color: #0a84ff; font-weight: 500; }
+#filters { display:flex; gap:5px; }
+#filters button {
+  background: #f2f2f7;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 0.9em;
+}
+#filters button:hover { background: #e5e5ea; }
+#search {
+  padding:5px 10px;
+  border:1px solid #d1d1d6;
+  border-radius: 12px;
+  flex:1;
+  background: #f2f2f7;
+}
+
+/* Tasks */
+#tasks { flex: 1; overflow-y: auto; padding: 15px; }
+.task {
+  background: rgba(255,255,255,0.9);
+  padding: 12px 20px;
+  margin-bottom: 12px;
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #d1d1d6;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  cursor: grab;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.task.completed { text-decoration: line-through; opacity: 0.5; }
+.task:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.task-title { flex: 1; cursor: pointer; }
+.task-buttons button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-left: 8px;
+  font-size: 1em;
+  color: #1c1c1e;
+}
+.starred { color: #ffcc00; }
+.overdue { background: #ffe6e6 !important; border-color: #ff3b30 !important; }
+.due-soon { background: #fff4cc !important; border-color: #ff9f0a !important; }
+
+/* Modals */
+.modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; display: none; }
+.modal-content {
+  background: rgba(255,255,255,0.95);
+  padding: 25px;
+  border-radius: 20px;
+  width: 320px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+.modal-content input, .modal-content textarea {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #d1d1d6;
+  background: #f2f2f7;
+}
+.modal-content button {
+  background: #0a84ff;
+  color: #fff;
+  border: none;
+  padding: 12px;
+  cursor: pointer;
+  width: 100%;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.modal-content button:hover { background: #0060df; }
+
+</style>
+</head>
+<body>
+
+<div id="lists">
+  <h2>Betnix Lists</h2>
+  <ul id="lists-ul"></ul>
+  <div id="add-list">+ Add List</div>
+</div>
+
+<div id="tasks-container">
+  <div id="tasks-header">
+    <span id="current-list-title">Select a list</span>
+    <span id="add-task">+ Add Task</span>
+    <input type="text" id="search" placeholder="Search tasks...">
+    <div id="filters">
+      <button data-filter="all">All</button>
+      <button data-filter="active">Active</button>
+      <button data-filter="completed">Completed</button>
+    </div>
+  </div>
+  <div id="tasks"></div>
+</div>
+
+<!-- Task Modal -->
+<div class="modal" id="task-modal">
+  <div class="modal-content">
+    <h3 id="modal-title">New Task</h3>
+    <input type="text" id="task-title-input" placeholder="Title">
+    <textarea id="task-desc-input" placeholder="Description"></textarea>
+    <input type="datetime-local" id="task-due-input">
+    <label>
+      <input type="checkbox" id="task-star-input"> Star
+    </label>
+    <button id="save-task">Save Task</button>
+  </div>
+</div>
+
+<!-- List Modal -->
+<div class="modal" id="list-modal">
+  <div class="modal-content">
+    <h3>New List</h3>
+    <input type="text" id="list-name-input" placeholder="List Name">
+    <button id="save-list">Save List</button>
+  </div>
+</div>
+
+<script>
+let lists = JSON.parse(localStorage.getItem('betnixLists')) || [];
+let currentListId = null;
+let editingTaskId = null;
+let currentFilter = 'all';
+
+function saveLists() { localStorage.setItem('betnixLists', JSON.stringify(lists)); }
+
+function renderLists() {
+  const ul = document.getElementById('lists-ul');
+  ul.innerHTML = '';
+  lists.forEach(list => {
+    const li = document.createElement('li');
+    li.textContent = list.name;
+    li.className = currentListId === list.id ? 'active' : '';
+    li.onclick = () => { currentListId = list.id; renderLists(); renderTasks(); };
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '🗑️';
+    delBtn.onclick = (e) => { e.stopPropagation(); lists = lists.filter(l => l.id !== list.id); if(currentListId===list.id) currentListId=null; saveLists(); renderLists(); renderTasks(); };
+    li.appendChild(delBtn);
+    ul.appendChild(li);
+  });
+}
+
+function renderTasks() {
+  const container = document.getElementById('tasks');
+  container.innerHTML = '';
+  const list = lists.find(l => l.id === currentListId);
+  document.getElementById('current-list-title').textContent = list ? list.name : 'Select a list';
+  if(!list) return;
+
+  const searchTerm = document.getElementById('search').value.toLowerCase();
+  let tasksToRender = list.tasks;
+
+  if(currentFilter==='active') tasksToRender = tasksToRender.filter(t => !t.completed);
+  else if(currentFilter==='completed') tasksToRender = tasksToRender.filter(t => t.completed);
+
+  tasksToRender = tasksToRender.filter(t => t.title.toLowerCase().includes(searchTerm) || (t.desc && t.desc.toLowerCase().includes(searchTerm)));
+
+  tasksToRender.forEach(task => {
+    const div = document.createElement('div');
+    div.className = 'task' + (task.completed ? ' completed' : '');
+    div.draggable = true;
+
+    // Highlight overdue or due soon
+    if(task.due && !task.completed){
+      const dueDate = new Date(task.due);
+      const now = new Date();
+      const diff = dueDate - now;
+      if(diff < 0) div.classList.add('overdue');
+      else if(diff <= 24*60*60*1000) div.classList.add('due-soon');
+    }
+
+    div.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', task.id); });
+    div.addEventListener('dragover', e => e.preventDefault());
+    div.addEventListener('drop', e => {
+      e.preventDefault();
+      const draggedId = Number(e.dataTransfer.getData('text/plain'));
+      const draggedIndex = list.tasks.findIndex(t => t.id===draggedId);
+      const dropIndex = list.tasks.findIndex(t => t.id===task.id);
+      const [draggedTask] = list.tasks.splice(draggedIndex,1);
+      list.tasks.splice(dropIndex,0,draggedTask);
+      saveLists();
+      renderTasks();
+    });
+
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'task-title';
+    titleSpan.textContent = task.title;
+    titleSpan.onclick = () => { task.completed = !task.completed; saveLists(); renderTasks(); };
+    if(task.star) titleSpan.classList.add('starred');
+
+    const buttons = document.createElement('div');
+    buttons.className = 'task-buttons';
+    const editBtn = document.createElement('button'); editBtn.textContent = '✏️';
+    editBtn.onclick = () => { openTaskModal(task.id); };
+    const delBtn = document.createElement('button'); delBtn.textContent = '🗑️';
+    delBtn.onclick = () => { list.tasks = list.tasks.filter(t => t.id !== task.id); saveLists(); renderTasks(); };
+    buttons.appendChild(editBtn); buttons.appendChild(delBtn);
+
+    div.appendChild(titleSpan); div.appendChild(buttons);
+    container.appendChild(div);
+  });
+}
+
+// Lists
+document.getElementById('add-list').onclick = () => { document.getElementById('list-modal').style.display = 'flex'; };
+document.getElementById('save-list').onclick = () => {
+  const name = document.getElementById('list-name-input').value.trim();
+  if(!name) return alert('List name required');
+  lists.push({id: Date.now(), name, tasks: []});
+  saveLists(); renderLists();
+  document.getElementById('list-name-input').value=''; document.getElementById('list-modal').style.display='none';
+};
+
+// Tasks
+document.getElementById('add-task').onclick = () => { 
+  if(!currentListId) return alert('Select a list first'); openTaskModal(); 
+};
+
+function openTaskModal(taskId=null) {
+  editingTaskId = taskId;
+  const modal = document.getElementById('task-modal'); modal.style.display='flex';
+  const list = lists.find(l => l.id===currentListId);
+  if(taskId){
+    const task = list.tasks.find(t => t.id===taskId);
+    document.getElementById('task-title-input').value = task.title;
+    document.getElementById('task-desc-input').value = task.desc;
+    document.getElementById('task-due-input').value = task.due || '';
+    document.getElementById('task-star-input').checked = task.star || false;
+    document.getElementById('modal-title').textContent = 'Edit Task';
+  } else {
+    document.getElementById('task-title-input').value=''; document.getElementById('task-desc-input').value='';
+    document.getElementById('task-due-input').value=''; document.getElementById('task-star-input').checked=false;
+    document.getElementById('modal-title').textContent='New Task';
+  }
+}
+
+document.getElementById('save-task').onclick = () => {
+  const title = document.getElementById('task-title-input').value.trim();
+  const desc = document.getElementById('task-desc-input').value.trim();
+  const due = document.getElementById('task-due-input').value;
+  const star = document.getElementById('task-star-input').checked;
+  if(!title) return alert('Task title required');
+  const list = lists.find(l => l.id===currentListId);
+  if(editingTaskId){
+    const task = list.tasks.find(t => t.id===editingTaskId);
+    task.title=title; task.desc=desc; task.due=due; task.star=star;
+  } else {
+    list.tasks.push({id: Date.now(), title, desc, due, star, completed:false});
+  }
+  saveLists(); renderTasks(); document.getElementById('task-modal').style.display='none';
+};
+
+// Filters
+document.querySelectorAll('#filters button').forEach(btn => {
+  btn.onclick = () => { currentFilter=btn.dataset.filter; renderTasks(); };
+});
+
+// Search
+document.getElementById('search').addEventListener('input', renderTasks);
+
+// Close modals by clicking outside
+window.onclick = (e) => { if(e.target.classList.contains('modal')) e.target.style.display='none'; };
+
+// Initial render
+renderLists(); renderTasks();
+
+// Optional: check every minute to refresh overdue highlights
+setInterval(() => { renderTasks(); }, 60000);
+</script>
+</body>
+</html>
