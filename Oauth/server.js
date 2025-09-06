@@ -137,4 +137,38 @@ app.get('/public/callback', (req, res) => {
   `);
 });
 
+app.get('/authorize', async (req, res) => {
+  const { client_id, redirect_uri } = req.query;
+  
+  // Validate client
+  let client = await Client.findOne({ clientId: client_id });
+  if (!client) {
+    client = new Client({
+      clientId: process.env.PUBLIC_CLIENT_ID,
+      clientSecret: process.env.PUBLIC_CLIENT_SECRET,
+      redirectUri: redirect_uri
+    });
+    await client.save();
+  }
+
+  // Show login form if not logged in
+  if (!req.session.user) {
+    return res.send(`
+      <h2>Login to Betnix</h2>
+      <form method="POST" action="/authorize">
+        <input type="hidden" name="client_id" value="${client_id}">
+        <input type="hidden" name="redirect_uri" value="${redirect_uri}">
+        <input type="text" name="username" placeholder="Username" required>
+        <input type="password" name="password" placeholder="Password" required>
+        <button type="submit">Login</button>
+      </form>
+    `);
+  }
+
+  const code = uuidv4();
+  authCodes[code] = req.session.user;
+  res.redirect(`${redirect_uri}?code=${code}`);
+});
+
+
 app.listen(process.env.PORT, () => console.log(`Betnix OAuth Server running at http://localhost:${process.env.PORT}`));
