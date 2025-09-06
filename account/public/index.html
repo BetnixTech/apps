@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Betnix Account Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="dashboard-container">
+  <header>
+    <h1>Betnix Account</h1>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="your-info">Your Info</button>
+    <button class="tab-btn" data-tab="security">Security</button>
+    <button class="tab-btn" data-tab="privacy">Privacy</button>
+  </div>
+
+  <div class="tab-content active" id="your-info">
+    <h2>Your Info</h2>
+    <form id="profileForm">
+      <label>Name</label>
+      <input type="text" id="name" placeholder="Name">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="Email">
+      <label>Phone</label>
+      <input type="text" id="phone" placeholder="Phone">
+      <label>Birthday</label>
+      <input type="date" id="birthday">
+      <label>Address</label>
+      <input type="text" id="address" placeholder="Address">
+      <label>Notes</label>
+      <textarea id="notes" placeholder="Safe notes"></textarea>
+      <button type="submit">Save Changes</button>
+    </form>
+  </div>
+
+  <div class="tab-content" id="security">
+    <h2>Security</h2>
+    <form id="passwordForm">
+      <label>Current Password</label>
+      <input type="password" id="currentPassword" placeholder="Current password">
+      <label>New Password</label>
+      <input type="password" id="newPassword" placeholder="New password">
+      <button type="submit">Update Password</button>
+    </form>
+    <p>Two-Factor Authentication (2FA)</p>
+    <button id="enable2FA">Enable 2FA</button>
+  </div>
+
+  <div class="tab-content" id="privacy">
+    <h2>Privacy</h2>
+    <label><input type="checkbox" id="shareEmail"> Share email with connected services</label><br>
+    <label><input type="checkbox" id="sharePhone"> Share phone with connected services</label><br>
+    <label><input type="checkbox" id="allowTracking"> Allow activity tracking</label>
+  </div>
+</div>
+
+<script src="dashboard.js"></script>
+<script>
+const tabs = document.querySelectorAll('.tab-btn');
+const contents = document.querySelectorAll('.tab-content');
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    contents.forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
