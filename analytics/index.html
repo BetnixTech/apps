@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Betnix Mega Analytics</title>
+
+<!-- UI Frameworks -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.3/dist/tailwind.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
+
+<!-- Icons -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+<!-- Animations & Effects -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/scrollreveal@4.0.9/dist/scrollreveal.min.js"></script>
+
+<!-- Charts & Graphs -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.41.0/dist/apexcharts.min.js"></script>
+<script src="https://www.gstatic.com/charts/loader.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.28.1.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/c3@0.7.24/c3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartist@0.11.4/dist/chartist.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartkick@4.0.0/dist/chartkick.min.js"></script>
+
+<!-- Utilities -->
+<script src="https://cdn.jsdelivr.net/npm/axios@1.6.1/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.0/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.12.9/dayjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
+
+<!-- Advanced Visualization -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r158/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vis-network@9.3.0/dist/vis-network.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega@5.27.0/build/vega.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@5.20.2/build/vega-lite.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@6.21.0/build/vega-embed.min.js"></script>
+
+<style>
+body{padding:20px;font-family:Arial,sans-serif;background:#f4f4f9;}
+.card{margin-bottom:20px;padding:15px;border-radius:12px;box-shadow:0 5px 15px rgba(0,0,0,0.1);}
+</style>
+</head>
+<body>
+
+<h1 class="animate__animated animate__fadeInDown">Betnix Mega Analytics Dashboard</h1>
+
+<!-- Login -->
+<div class="card">
+<h3>Login</h3>
+<input type="email" id="email" placeholder="Betnix Email" class="form-control mb-2">
+<input type="password" id="password" placeholder="Password" class="form-control mb-2">
+<button onclick="login()" class="btn btn-primary">Login</button>
+</div>
+
+<!-- Charts -->
+<div class="row">
+<div class="col-md-6">
+<div class="card">
+<h3>Visits (Chart.js)</h3>
+<canvas id="visitsChart" width="400" height="300"></canvas>
+</div>
+</div>
+<div class="col-md-6">
+<div class="card">
+<h3>Clicks (ApexCharts)</h3>
+<div id="clicksChart"></div>
+</div>
+</div>
+</div>
+
+<!-- 3D & Advanced Visualizations -->
+<div class="row">
+<div class="col-md-6">
+<div class="card">
+<h3>3D Visualization (Three.js)</h3>
+<div id="threeContainer" style="height:300px;"></div>
+</div>
+</div>
+<div class="col-md-6">
+<div class="card">
+<h3>D3 Graph</h3>
+<div id="d3Graph"></div>
+</div>
+</div>
+</div>
+
+<script>
+let token='';
+
+async function login(){
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    try{
+        const res = await axios.post('/account/login',{ email,password });
+        token = res.data.token;
+        alert('Logged in!');
+        loadDashboard();
+        startTracking();
+    }catch(err){ alert('Login failed'); console.error(err); }
+}
+
+async function loadDashboard(){
+    if(!token) return;
+    const res = await axios.get(`/data?token=${token}`);
+    const { visits, clicks } = res.data;
+
+    // Chart.js visits
+    new Chart(document.getElementById('visitsChart').getContext('2d'),{
+        type:'line',
+        data:{ labels:visits.map((v,i)=>i+1), datasets:[{ label:'Visits', data:visits.map(v=>1), borderColor:'blue', tension:0.3 }] },
+        options:{ responsive:true }
+    });
+
+    // ApexCharts clicks
+    new ApexCharts(document.querySelector('#clicksChart'),{
+        chart:{ type:'bar', height:300 },
+        series:[{ name:'Clicks', data:clicks.map(c=>1) }],
+        xaxis:{ categories:clicks.map((c,i)=>i+1) }
+    }).render();
+
+    // Three.js Demo
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75,400/300,0.1,1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(400,300);
+    document.getElementById('threeContainer').appendChild(renderer.domElement);
+    const cube = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial({color:0x0077ff}));
+    scene.add(cube);
+    camera.position.z=5;
+    function animate(){ requestAnimationFrame(animate); cube.rotation.x+=0.01; cube.rotation.y+=0.01; renderer.render(scene,camera); }
+    animate();
+
+    // D3 Demo
+    const svg = d3.select("#d3Graph").append("svg").attr("width",300).attr("height",300);
+    svg.append("circle").attr("cx",150).attr("cy",150).attr("r",50).style("fill","orange");
+}
+
+function startTracking(){
+    if(!token) return;
+    // page visit
+    axios.post('/track',{ type:'visit', info:{ url:window.location.href, ref:document.referrer, userAgent:navigator.userAgent }, token });
+    // clicks
+    document.addEventListener('click', e=>{
+        axios.post('/track',{ type:'click', info:{ tag:e.target.tagName, id:e.target.id, url:window.location.href, userAgent:navigator.userAgent }, token });
+    });
+}
+
+// Initialize AOS animations
+AOS.init();
+</script>
+</body>
+</html>
