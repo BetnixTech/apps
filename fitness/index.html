@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Betnix Fit Live Dashboard</title>
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+<!-- Axios -->
+<script src="https://cdn.jsdelivr.net/npm/axios@1.7.2/dist/axios.min.js"></script>
+
+<style>
+body {
+  font-family: 'Roboto', sans-serif;
+  background: #f0f2f5;
+  color: #333;
+}
+
+h1 { font-weight: 500; margin-bottom: 1.5rem; }
+
+#auth, #app {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  padding: 2rem;
+  margin: 2rem auto;
+  max-width: 900px;
+}
+
+input.form-control {
+  border-radius: 12px;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  transition: border-color 0.2s;
+}
+
+input.form-control:focus {
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 3px rgba(74,144,226,0.2);
+}
+
+button.btn {
+  border-radius: 12px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+button.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.card-metric {
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  padding: 1rem;
+  text-align: center;
+  background: #fff;
+  margin-bottom: 1rem;
+}
+
+.card-metric h2 { margin-bottom: 0.5rem; }
+canvas { border-radius: 12px; background:#fff; padding:1rem; margin-top:0.5rem; box-shadow:0 6px 20px rgba(0,0,0,0.08);}
+</style>
+</head>
+<body>
+
+<div class="container mt-5">
+  <h1 class="text-center">Betnix Fit Live Dashboard</h1>
+
+  <!-- Login -->
+  <div id="auth">
+    <input id="username" class="form-control mb-3" placeholder="Betnix username">
+    <input id="password" type="password" class="form-control mb-3" placeholder="Password">
+    <button class="btn btn-primary w-100" onclick="login()">Login with Betnix</button>
+  </div>
+
+  <!-- App -->
+  <div id="app" style="display:none;">
+    <div class="mb-3 text-end">
+      <button class="btn btn-secondary me-2" onclick="logout()">Logout</button>
+      <button class="btn btn-success me-2" onclick="connectWatch()">Connect Watch</button>
+      <button class="btn btn-success" onclick="connectScale()">Connect Scale</button>
+    </div>
+
+    <!-- Metric Cards -->
+    <div class="row mb-4">
+      <div class="col-md-3"><div class="card-metric"><h2 id="liveHR">--</h2><p>Heart BPM</p></div></div>
+      <div class="col-md-3"><div class="card-metric"><h2 id="liveWeight">--</h2><p>Weight (kg)</p></div></div>
+      <div class="col-md-3"><div class="card-metric"><h2 id="liveSys">--</h2><p>Systolic BP</p></div></div>
+      <div class="col-md-3"><div class="card-metric"><h2 id="liveDia">--</h2><p>Diastolic BP</p></div></div>
+      <div class="col-md-3"><div class="card-metric"><h2 id="liveOxygen">--</h2><p>Oxygen (%)</p></div></div>
+    </div>
+
+    <!-- Combined Charts -->
+    <canvas id="chartAll" height="250"></canvas>
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+let chartAll = null;
+let metricsHistory = [];
+
+async function login(){
+  const username=document.getElementById("username").value;
+  const password=document.getElementById("password").value;
+  try{
+    await axios.post("/login",{username,password});
+    document.getElementById("auth").style.display="none";
+    document.getElementById("app").style.display="block";
+    loadMetrics();
+  }catch{ alert("Login failed"); }
+}
+
+async function logout(){
+  await axios.post("/logout");
+  document.getElementById("auth").style.display="block";
+  document.getElementById("app").style.display="none";
+}
+
+// --- Update live metrics
+function updateLiveCards(latest){
+  if(!latest) return;
+  latest.forEach(m=>{
+    switch(m.type){
+      case "heart_rate": document.getElementById("liveHR").textContent=m.value; break;
+      case "weight": document.getElementById("liveWeight").textContent=m.value; break;
+      case "systolic": document.getElementById("liveSys").textContent=m.value; break;
+      case "diastolic": document.getElementById("liveDia").textContent=m.value; break;
+      case "oxygen": document.getElementById("liveOxygen").textContent=m.value; break;
+    }
+  });
+}
+
+// --- Send Metric
+async function sendMetric(type,value,unit){
+  await axios.post("/api/metrics",{type,value,unit});
+  loadMetrics();
+}
+
+// --- Load Metrics
+async function loadMetrics(){
+  try{
+    const res = await axios.get("/api/metrics");
+    metricsHistory = res.data.reverse();
+    updateLiveCards(metricsHistory.slice(-5));
+
+    const labels = metricsHistory.map(m=>new Date(m.ts).toLocaleTimeString());
+    const hrData = metricsHistory.filter(m=>m.type==='heart_rate').map(m=>m.value);
+    const weightData = metricsHistory.filter(m=>m.type==='weight').map(m=>m.value);
+    const bpSys = metricsHistory.filter(m=>m.type==='systolic').map(m=>m.value);
+    const bpDia = metricsHistory.filter(m=>m.type==='diastolic').map(m=>m.value);
+    const oxygenData = metricsHistory.filter(m=>m.type==='oxygen').map(m=>m.value);
+
+    if(chartAll) chartAll.destroy();
+    const ctx = document.getElementById("chartAll").getContext("2d");
+    chartAll = new Chart(ctx,{
+      type:'line',
+      data:{
+        labels,
+        datasets:[
+          {label:'Heart BPM', data:hrData, borderColor:'#e74c3c', tension:0.3, fill:false},
+          {label:'Weight (kg)', data:weightData, borderColor:'#3498db', tension:0.3, fill:false},
+          {label:'Systolic BP', data:bpSys, borderColor:'#2ecc71', tension:0.3, fill:false},
+          {label:'Diastolic BP', data:bpDia, borderColor:'#f1c40f', tension:0.3, fill:false},
+          {label:'Oxygen (%)', data:oxygenData, borderColor:'#9b59b6', tension:0.3, fill:false}
+        ]
+      },
+      options:{responsive:true, plugins:{legend:{position:'top'}}, scales:{y:{beginAtZero:true}}}
+    });
+
+  }catch(err){ console.error(err); }
+}
+
+// --- Web Bluetooth Watch ---
+async function connectWatch(){
+  try{
+    const device = await navigator.bluetooth.requestDevice({
+      filters:[{services:["heart_rate"]}],
+      optionalServices:["blood_pressure","pulse_oximeter"]
+    });
+    const server = await device.gatt.connect();
+
+    const hrService = await server.getPrimaryService("heart_rate");
+    const hrChar = await hrService.getCharacteristic("heart_rate_measurement");
+    hrChar.startNotifications();
+    hrChar.addEventListener("characteristicvaluechanged", e=>{
+      const bpm=e.target.value.getUint8(1);
+      sendMetric("heart_rate",bpm,"bpm");
+    });
+
+    try {
+      const bpService = await server.getPrimaryService("blood_pressure");
+      const bpChar = await bpService.getCharacteristic("blood_pressure_measurement");
+      bpChar.startNotifications();
+      bpChar.addEventListener("characteristicvaluechanged", e=>{
+        const sys=e.target.value.getUint16(1,true);
+        const dia=e.target.value.getUint16(3,true);
+        sendMetric("systolic",sys,"mmHg");
+        sendMetric("diastolic",dia,"mmHg");
+      });
+    } catch {}
+
+    try {
+      const oxService = await server.getPrimaryService("pulse_oximeter");
+      const oxChar = await oxService.getCharacteristic("pulse_oximeter_continuous_measurement");
+      oxChar.startNotifications();
+      oxChar.addEventListener("characteristicvaluechanged", e=>{
+        const spo2 = e.target.value.getUint8(1);
+        sendMetric("oxygen",spo2,"%");
+      });
+    } catch {}
+
+  }catch(err){ alert("Watch connect failed: "+err); }
+}
+
+// --- Web Bluetooth Scale ---
+async function connectScale(){
+  try{
+    const device = await navigator.bluetooth.requestDevice({
+      filters:[{services:["weight_scale"]}]
+    });
+    const server = await device.gatt.connect();
+    const ws = await server.getPrimaryService("weight_scale");
+    const char = await ws.getCharacteristic("weight_measurement");
+    char.startNotifications();
+    char.addEventListener("characteristicvaluechanged", e=>{
+      const weight=e.target.value.getUint16(1,true)/200;
+      sendMetric("weight",weight,"kg");
+    });
+  }catch(err){ alert("Scale connect failed: "+err);}
+}
+
+// Refresh metrics every 10 seconds
+setInterval(()=>{ if(document.getElementById("app").style.display==="block") loadMetrics(); }, 10000);
+</script>
+</body>
+</html>
