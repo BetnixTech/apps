@@ -1,0 +1,41 @@
+<button id="loginWithBetnix" class="betnix-btn">
+  Login with Betnix
+</button>
+<p id="loginStatus"></p>
+
+<style>
+.betnix-btn {
+  background: linear-gradient(90deg, #ff4500, #ff6347);
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+}
+.betnix-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+  background: linear-gradient(90deg, #ff6347, #ff4500);
+}
+</style>
+
+<script>
+document.getElementById('loginWithBetnix').addEventListener('click', async () => {
+  // Trigger Node.js backend
+  const popup = window.open('/authorize?client_id=public_client_1&redirect_uri=http://localhost:3000/public/callback&response_type=code', 
+                            'BetnixLogin', 'width=500,height=600,left=200,top=100');
+  
+  // Listen for message from popup (access token)
+  window.addEventListener('message', (event) => {
+    if (event.data.access_token) {
+      document.getElementById('loginStatus').innerText =
+        `Logged in as ${event.data.username}`;
+      console.log("Access Token:", event.data.access_token);
+    }
+  });
+});
+</script>
