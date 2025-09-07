@@ -1,68 +1,73 @@
 const express = require('express');
-const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
 const bodyParser = require('body-parser');
-const cors = require('cors');
-const User = require('./models/User');
-const Device = require('./models/Device');
 
 const app = express();
-app.use(cors());
+const PORT = 5000;
+
 app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public'))); // for setup.html
 
-// Connect MongoDB
-mongoose.connect('mongodb://localhost:27017/betnix_home', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(()=>console.log("MongoDB connected"));
+const DEVICES_FILE = path.join(__dirname, 'devices.json');
+const USERS_FILE = path.join(__dirname, 'users.json');
 
 // -------------------------------
-// User registration
+// Helper functions
 // -------------------------------
-app.post('/api/register', async (req,res)=>{
-    const {email, house_name} = req.body;
-    if(!email || !house_name) return res.json({success:false, error:"Missing info"});
-    const user = new User({email, house_name});
-    await user.save();
-    res.json({success:true, user});
+function loadJSON(filePath, defaultValue) {
+    if (fs.existsSync(filePath)) {
+        try {
+            return JSON.parse(fs.readFileSync(filePath));
+        } catch (err) {
+            console.error(`Error parsing ${filePath}:`, err);
+            return defaultValue;
+        }
+    }
+    return defaultValue;
+}
+
+function saveJSON(filePath, data) {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+// -------------------------------
+// POST /save_setup
+// -------------------------------
+app.post('/save_setup', (req, res) => {
+    const { room, dtype, ip, email, password } = req.body;
+    if (!room || !dtype || !ip || !email || !password) {
+        return res.status(400).send('All fields are required');
+    }
+
+    // Load existing data
+    const devices = loadJSON(DEVICES_FILE, {});
+    const users = loadJSON(USERS_FILE, []);
+
+    // Save device
+    if (!devices[room]) devices[room] = {};
+    let devEntry = {
+        type: dtype === 'light' || dtype === 'plug' ? 'kasa' : 'pi',
+        state: false
+    };
+    if (devEntry.type === 'kasa') devEntry.ip = ip;
+    else devEntry.pin = parseInt(ip); // GPIO pin for Pi
+
+    devices[room][dtype] = devEntry;
+    saveJSON(DEVICES_FILE, devices);
+
+    // Save user if not already exists
+    if (!users.some(u => u.email === email)) {
+        users.push({ email, password });
+        saveJSON(USERS_FILE, users);
+    }
+
+    res.send('Setup saved successfully');
 });
 
 // -------------------------------
-// Add device
+// Start server
 // -------------------------------
-app.post('/api/add_device', async (req,res)=>{
-    const {userId, room, type, brand, ip} = req.body;
-    if(!userId || !room || !type || !ip) return res.json({success:false, error:"Missing info"});
-    // Check if IP is reachable (basic ping)
-    const net = require('net');
-    const reachable = await new Promise(r=>{
-        const sock = new net.Socket();
-        sock.setTimeout(2000);
-        sock.on('connect', ()=>{sock.destroy(); r(true)});
-        sock.on('error', ()=>{r(false)});
-        sock.connect(80, ip);
-    });
-    if(!reachable) return res.json({success:false, error:"IP unreachable"});
-    let name = `Betnix ${brand || type}`;
-    const device = new Device({room, type, brand, ip, user:userId});
-    await device.save();
-    // Update user
-    const user = await User.findById(userId);
-    user.devices.push(device._id);
-    await user.save();
-    res.json({success:true, device});
+app.listen(PORT, () => {
+    console.log(`Betnix setup server running at http://localhost:${PORT}`);
 });
-
-// -------------------------------
-// Toggle device
-// -------------------------------
-app.post('/api/set_device', async (req,res)=>{
-    const {deviceId, state} = req.body;
-    const device = await Device.findById(deviceId);
-    if(!device) return res.json({success:false, error:"Device not found"});
-    device.state = state;
-    await device.save();
-    // TODO: call Python AI or Kasa API for real device toggle
-    res.json({success:true, state:device.state});
-});
-
-app.listen(3000, ()=>console.log("Node.js server running on port 3000"));
