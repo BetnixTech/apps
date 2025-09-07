@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Betnix Router Dashboard</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Roboto, Arial; padding: 18px; max-width:900px; margin:0 auto; }
+    header { display:flex; justify-content:space-between; align-items:center; }
+    .card { border:1px solid #eee; padding:16px; border-radius:8px; margin-top:12px; box-shadow: 0 1px 4px rgba(0,0,0,0.03); }
+    label { display:block; margin-top:8px; font-size:13px; color:#333; }
+    input[type=text], input[type=password], input[type=number] { width:100%; padding:8px; margin-top:6px; box-sizing:border-box; }
+    button { margin-top:12px; padding:8px 12px; border-radius:6px; border:none; cursor:pointer; }
+    .muted { color:#666; font-size:13px }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Betnix Router Dashboard</h1>
+    <div id="auth-area">
+      <a id="login-link" href="/auth/betnix">Log in with Betnix</a>
+    </div>
+  </header>
+
+  <div id="main">
+    <div id="status" class="card">
+      <h3>Router Status</h3>
+      <div id="status-body"><span class="muted">loading…</span></div>
+    </div>
+
+    <div id="settings" class="card" style="display:none">
+      <h3>Wi-Fi Settings</h3>
+      <label>SSID<input id="ssid" type="text"></label>
+      <label>Password<input id="wifiPass" type="password"></label>
+      <label>Channel<input id="channel" type="number" min="1" max="11"></label>
+      <label>DHCP Start<input id="dhcpStart" type="text"></label>
+      <label>DHCP End<input id="dhcpEnd" type="text"></label>
+      <button id="saveBtn">Save & Apply</button>
+      <div id="saveResult" class="muted"></div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
