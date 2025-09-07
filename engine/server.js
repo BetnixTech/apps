@@ -1,71 +1,69 @@
 const express = require("express");
+const multer = require("multer");
 const bodyParser = require("body-parser");
-const mongoose = require("mongoose");
-const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const ASSET_FILE = path.join(__dirname, "assets.json");
 
 // Middleware
-app.use(bodyParser.json({ limit: "50mb" }));
-app.use(cors()); // allow cross-domain requests
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+app.use(express.static("public")); // optional: frontend folder
 
-// Connect to MongoDB
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/html_assets";
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("MongoDB connected"))
-  .catch(err => console.log(err));
+// Setup Multer for file upload
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
-// Define Asset schema
-const assetSchema = new mongoose.Schema({
-  assetId: { type: String, unique: true },
-  name: String,
-  description: String,
-  html: String,
-  created: { type: Date, default: Date.now }
-});
-
-const Asset = mongoose.model("Asset", assetSchema);
-
-// Generate unique asset ID
-function makeId(bytes=6){
-  return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
+// Load or initialize JSON file
+let assets = [];
+if (fs.existsSync(ASSET_FILE)) {
+  assets = JSON.parse(fs.readFileSync(ASSET_FILE, "utf-8"));
 }
 
-// Routes
+// Save assets helper
+function saveAssets() {
+  fs.writeFileSync(ASSET_FILE, JSON.stringify(assets, null, 2), "utf-8");
+}
 
-// Create new asset
-app.post("/asset", async (req, res) => {
-  const { name, description, html } = req.body;
-  if (!name || !html) return res.status(400).json({ error: "Name and HTML required" });
+// Generate asset ID
+function generateAssetId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8).toUpperCase();
+}
 
-  const assetId = Date.now().toString(36) + Math.random().toString(36).slice(2,8).toUpperCase();
-  const newAsset = new Asset({ assetId, name, description, html });
+// Upload endpoint
+app.post("/upload", upload.single("file"), (req, res) => {
+  const { name, description } = req.body;
+  const file = req.file;
 
-  try {
-    await newAsset.save();
-    res.json({ assetId, url: `/asset/${assetId}` });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to save asset" });
-  }
+  if (!name || !file) return res.status(400).send("Name and file are required");
+
+  // Convert file to data URL
+  const mimeType = file.mimetype;
+  const base64 = file.buffer.toString("base64");
+  const dataUrl = `data:${mimeType};base64,${base64}`;
+
+  // Create asset object
+  const assetId = generateAssetId();
+  const asset = { assetId, name, description, dataUrl, created: Date.now() };
+  assets.push(asset);
+  saveAssets();
+
+  res.json({ assetId, url: `/asset/${assetId}` });
 });
 
-// Get asset HTML by ID
-app.get("/asset/:id", async (req, res) => {
-  const { id } = req.params;
-  const asset = await Asset.findOne({ assetId: id });
+// Serve asset by ID
+app.get("/asset/:id", (req, res) => {
+  const asset = assets.find(a => a.assetId === req.params.id);
   if (!asset) return res.status(404).send("Asset not found");
-  res.send(asset.html);
+  res.send(`<html><body><iframe src="${asset.dataUrl}" style="width:100%;height:100vh;border:none;"></iframe></body></html>`);
 });
 
 // List all assets
-app.get("/assets", async (req, res) => {
-  const assets = await Asset.find({}, "assetId name description created").sort({ created: -1 });
-  res.json(assets);
+app.get("/assets", (req, res) => {
+  res.json(assets.map(a => ({ assetId: a.assetId, name: a.name, description: a.description })));
 });
-
-// Serve frontend (optional)
-app.use(express.static("public")); // put your frontend HTML here
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
