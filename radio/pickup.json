@@ -1,0 +1,230 @@
+[
+  {
+    "name": "BBC Radio 1",
+    "country": "United Kingdom",
+    "state": "England",
+    "url": "https://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio1xtra_mf_p"
+  },
+  {
+    "name": "BBC Radio 4",
+    "country": "United Kingdom",
+    "state": "England",
+    "url": "https://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio_fourfm"
+  },
+  {
+    "name": "Radio Caroline",
+    "country": "United Kingdom",
+    "state": "England",
+    "url": "https://radiocaroline.co.uk/stream/"
+  },
+  {
+    "name": "KEXP 90.3 FM",
+    "country": "United States",
+    "state": "Washington",
+    "url": "http://live-mp3-128.kexp.org/kexp128.mp3"
+  },
+  {
+    "name": "WDZQ 95Q",
+    "country": "United States",
+    "state": "Illinois",
+    "url": "http://nowdecatur.com/95q"
+  },
+  {
+    "name": "Radio Swiss Classic",
+    "country": "Switzerland",
+    "state": "",
+    "url": "http://stream.srg-ssr.ch/m/rsc_de/mp3_128"
+  },
+  {
+    "name": "France Inter",
+    "country": "France",
+    "state": "",
+    "url": "http://direct.franceinter.fr/live/franceinter-midfi.mp3"
+  },
+  {
+    "name": "Afrofusion Amapiano",
+    "country": "South Africa",
+    "state": "",
+    "url": "https://play.streamafrica.net/afrofusionamp"
+  },
+  {
+    "name": "Old Time Radio",
+    "country": "Global",
+    "state": "",
+    "url": "https://play.streamafrica.net/oldtimeradio"
+  },
+  {
+    "name": "Apple Music 1",
+    "country": "United States",
+    "state": "",
+    "url": "https://www.iheart.com/live/apple-music-1-1042/"
+  },
+  {
+    "name": "Jazz Radio",
+    "country": "United States",
+    "state": "",
+    "url": "https://play.streamafrica.net/radiojazz"
+  },
+  {
+    "name": "Reggae Republic",
+    "country": "Jamaica",
+    "state": "",
+    "url": "https://play.streamafrica.net/reggaerepublic"
+  },
+  {
+    "name": "Radio Swiss Jazz",
+    "country": "Switzerland",
+    "state": "",
+    "url": "http://stream.srg-ssr.ch/m/rsj_de/mp3_128"
+  },
+  {
+    "name": "KISS Radio",
+    "country": "Taiwan",
+    "state": "Kaohsiung",
+    "url": "http://www.kiss.com.tw/"
+  },
+  {
+    "name": "Radio Garden",
+    "country": "Global",
+    "state": "",
+    "url": "https://radio.garden"
+  },
+  {
+    "name": "Radio Browser",
+    "country": "Global",
+    "state": "",
+    "url": "https://www.radio-browser.info/"
+  },
+  {
+    "name": "FMStream Directory",
+    "country": "Global",
+    "state": "",
+    "url": "https://fmstream.org/index.php?c=FT"
+  },
+  {
+    "name": "Internet Radio Directory",
+    "country": "Global",
+    "state": "",
+    "url": "https://www.internet-radio.com/"
+  },
+  {
+    "name": "SHOUTcast Directory",
+    "country": "Global",
+    "state": "",
+    "url": "https://directory.shoutcast.com/"
+  },
+  {
+    "name": "Xiph Directory",
+    "country": "Global",
+    "state": "",
+    "url": "https://dir.xiph.org/"
+  },
+  {
+    "name": "Streamitter",
+    "country": "Global",
+    "state": "",
+    "url": "https://streamitter.com/"
+  },
+  {
+    "name": "Streema",
+    "country": "Global",
+    "state": "",
+    "url": "https://streema.com/"
+  },
+  {
+    "name": "Radio FM",
+    "country": "Global",
+    "state": "",
+    "url": "https://radio.fm/"
+  },
+  {
+    "name": "StreamingThe.net",
+    "country": "Global",
+    "state": "",
+    "url": "https://streamingthe.net/"
+  },
+  {
+    "name": "RadioTower.com",
+    "country": "Global",
+    "state": "",
+    "url": "https://www.radiotower.com/"
+  },
+  {
+    "name": "Screamer Radio",
+    "country": "Global",
+    "state": "",
+    "url": "https://www.screamer-radio.com/"
+  },
+  {
+    "name": "filtermusic",
+    "country": "Global",
+    "state": "",
+    "url": "https://filtermusic.net/"
+  },
+  {
+    "name": "Radioguide.FM",
+    "country": "Global",
+    "state": "",
+    "url": "https://www.radioguide.fm/"
+  },
+  {
+    "name": "Live Online Radio",
+    "country": "Global",
+    "state": "",
+    "url": "https://www.liveonlineradio.net/"
+  },
+  {
+    "name": "LiveRadio.ie",
+    "country": "Ireland",
+    "state": "",
+    "url": "https://www.liveradio.ie/"
+  },
+  {
+    "name": "LiveRadio.uk",
+    "country": "United Kingdom",
+    "state": "",
+    "url": "https://www.liveradio.uk/"
+  },
+  {
+    "name": "Radioline",
+    "country": "Global",
+    "state": "",
+    "url": "https://www.radioline.co/"
+  },
+  {
+    "name": "Reel Top 40 Radio Repository",
+    "country": "United States",
+    "state": "North Carolina",
+    "url": "https://reelradio.ncbmuseum.com/"
+  },
+  {
+    "name": "Mike's Radio World",
+    "country": "Global",
+    "state": "",
+    "url": "https://www.mikesradioworld.com/"
+  },
+  {
+    "name": "Streamtuner",
+    "country": "Global",
+    "state": "",
+    "url": "https://www.nongnu.org/streamtuner/"
+  },
+  {
+    "name": "Streamtuner2",
+    "country": "Global",
+    "state": "",
+    "url": "https://github.com/eliasku/streamtuner2"
+  },
+  {
+    "name": "Internet Radio Stations List",
+    "country": "Global",
+    "state": "",
+    "url": "https://forum.wiimhome.com/threads/list-of-radio-station-urls.1518/"
+  },
+  {
+    "name": "MikePierce's Internet Radio Streams",
+    "country": "Global",
+    "state": "",
+    "url": "https://github.com/mikepierce/internet-radio-streams"
+  }
+]
